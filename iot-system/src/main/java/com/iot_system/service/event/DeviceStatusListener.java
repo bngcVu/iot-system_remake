@@ -79,12 +79,12 @@ public class DeviceStatusListener {
 
             log.info("[SERVICE] Đã lưu lịch sử hành động: deviceId={}, trạng thái={}", deviceId, state);
 
-            //Gửi WebSocket tới FE
+            // Gửi thông điệp WebSocket tới FE
             Map<String, Object> wsPayload = new HashMap<>();
             wsPayload.put("deviceId", deviceId);
             wsPayload.put("state", state);
             if (correlationId != null) wsPayload.put("correlationId", correlationId);
-            // Thống nhất format thời gian dd-MM-yyyy HH:mm:ss
+            // Định dạng thời gian đồng nhất dd-MM-yyyy HH:mm:ss
             DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
             wsPayload.put("recordedAt", history.getExecutedAt().format(fmt));
             wsTemplate.convertAndSend("/topic/devices", wsPayload);
@@ -107,7 +107,7 @@ public class DeviceStatusListener {
                 light = json.get("light_level").asDouble();
             }
 
-            // Sanitize values: accept zero, ignore sentinel -1
+            // Làm sạch giá trị: chấp nhận 0, bỏ qua giá trị -1 (sentinel)
             if (temperature != null && temperature == -1.0) temperature = null;
             if (humidity != null && humidity == -1.0) humidity = null;
             if (light != null && light == -1.0) light = null;
@@ -120,7 +120,7 @@ public class DeviceStatusListener {
 
             log.info("[SERVICE] Đã lưu dữ liệu cảm biến cho deviceUid={}", deviceUid);
 
-                //Gửi WebSocket tới FE
+                // Gửi thông điệp WebSocket tới FE
                 Map<String, Object> wsPayload = new HashMap<>();
                 wsPayload.put("deviceUid", deviceUid);
                 wsPayload.put("temperature", temperature);

@@ -17,10 +17,10 @@ public class SensorDataController {
         this.sensorDataService = sensorDataService;
     }
 
-    // Một phương thức GET duy nhất tại path gốc "/api/sensor-data"
     @GetMapping
     public PagedResponse<SensorReadingDTO> search(
             @RequestParam(name = "dateStr", required = false) String dateStr,
+            @RequestParam(name = "date", required = false) String dateAlias,
             @RequestParam(defaultValue = "ALL") SensorMetric metric,
             @RequestParam(required = false) String valueOp,
             @RequestParam(required = false) Double value,
@@ -28,7 +28,8 @@ public class SensorDataController {
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(defaultValue = "desc") String sort
     ) {
-        String dateQuery = (dateStr != null && !dateStr.isBlank()) ? dateStr : null;
+    String dateQuery = (dateStr != null && !dateStr.isBlank()) ? dateStr :
+        ((dateAlias != null && !dateAlias.isBlank()) ? dateAlias : null);
 
         // Nếu truyền valueOp (không rỗng) => vào luồng tìm theo giá trị
         if (valueOp != null && !valueOp.isBlank()) {

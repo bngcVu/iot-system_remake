@@ -10,20 +10,20 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 /**
- * Utility class for response mapping operations
+ * Tiện ích chuyển đổi dữ liệu phản hồi (Page -> PagedResponse)
  */
 public class ResponseUtils {
     
     private static final Logger log = LoggerFactory.getLogger(ResponseUtils.class);
     
     /**
-     * Generic method để chuyển Page<T> -> PagedResponse<R>
+     * Phương thức tổng quát để chuyển Page<T> -> PagedResponse<R>
      * @param page Spring Data Page
-     * @param pageNumber current page number
-     * @param pageSize page size
-     * @param message success message
-     * @param mapper function to map entity to DTO
-     * @param emptyMessage message when no data found
+     * @param pageNumber số trang hiện tại
+     * @param pageSize kích thước trang
+     * @param message thông điệp thành công
+     * @param mapper hàm ánh xạ entity -> DTO
+     * @param emptyMessage thông điệp khi không có dữ liệu
      * @return PagedResponse<R>
      */
     public static <T, R> PagedResponse<R> mapToPagedResponse(Page<T> page, 

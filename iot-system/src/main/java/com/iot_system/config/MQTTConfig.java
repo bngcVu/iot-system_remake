@@ -32,7 +32,7 @@ public class MQTTConfig {
 
     @Bean
     public MqttClient mqttClient() throws MqttException {
-        // Broker URL = ssl://host:port (HiveMQ Cloud cần SSL)
+    // Địa chỉ Broker dạng ssl://host:port (HiveMQ Cloud yêu cầu SSL)
         String brokerUrl = "ssl://" + host + ":" + port;
         String clientId = appName + "-" + System.currentTimeMillis();
 

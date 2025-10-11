@@ -206,15 +206,15 @@ class VanillaSensorDataManager {
     async performSearch() {
         const raw = document.getElementById('searchInput').value.trim();
 
-        let parsed = this.parseUnifiedQuery(raw);
+    let parsed = this.parseUnifiedQuery(raw);
 
-        // Loại bỏ tìm khoảng (range) vẫn giữ invalid nếu nhập "x - y"
-        const rangePattern = /^(\d+(?:[\.,]\d+)?)\s*[-–]\s*(\d+(?:[\.,]\d+)?)/;
-        if (rangePattern.test(raw)) parsed = { type: 'invalid' };
+    // Không đánh dấu 'invalid' cho định dạng ngày. Chỉ coi là khoảng số khi toàn bộ chuỗi là dạng "x - y"
+    const rangePattern = /^\s*(\d+(?:[\.,]\d+)?)\s*[-–]\s*(\d+(?:[\.,]\d+)?)\s*$/;
+    if (parsed.type !== 'date' && rangePattern.test(raw)) parsed = { type: 'invalid' };
 
         // Nếu đang ở ALL và chỉ nhập một số -> tìm trên ALL (OR ở backend)
         if ((parsed.type === 'invalid' || parsed.type === 'none') && this.currentFilter === 'all') {
-            const numSolo = raw.match(/^(\d+(?:[\.,]\d+)?)/);
+            const numSolo = raw.match(/^\s*(\d+(?:[\.,]\d+)?)\s*$/);
             if (numSolo) {
                 const val = parseFloat(numSolo[1].replace(',', '.'));
                 parsed = { type: 'value', metric: 'ALL', valueOp: 'eq', value: val };
@@ -223,7 +223,7 @@ class VanillaSensorDataManager {
 
         // Nếu không phải ALL nhưng parse invalid mà người dùng nhập số đơn → coi là eq cho sensor đã chọn
         if ((parsed.type === 'invalid' || parsed.type === 'none') && this.currentFilter !== 'all') {
-            const numSolo = raw.match(/^(\d+(?:[\.,]\d+)?)/);
+            const numSolo = raw.match(/^\s*(\d+(?:[\.,]\d+)?)\s*$/);
             if (numSolo) {
                 const val = parseFloat(numSolo[1].replace(',', '.'));
                 const metricEnum = this.mapFilterToMetric(this.currentFilter) || 'ALL';
@@ -235,7 +235,7 @@ class VanillaSensorDataManager {
 
         if (parsed.type === 'invalid') {
             // Nếu user chỉ nhập 1 số (ví dụ 27.2) nhưng parseUnifiedQuery chưa nhận diện => coi là giá trị cho TEMP khi đang ALL
-            const numericSolo = raw.match(/^(\d+(?:[\.,]\d+)?)/);
+            const numericSolo = raw.match(/^\s*(\d+(?:[\.,]\d+)?)\s*$/);
             if (numericSolo) {
                 const val = parseFloat(numericSolo[1].replace(',', '.'));
                 parsed = { type: 'value', metric: 'TEMP', valueOp: 'eq', value: val };
