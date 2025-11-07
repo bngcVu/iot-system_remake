@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IOT System - Thống kê</title>
+  <link rel="icon" type="image/png" href="img/iot.png" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/common.css" />
+  <link rel="stylesheet" href="css/statistics.css" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- GSAP for animations -->
+  <script src="js/gsap.min.js"></script>
+
+  <!-- Scripts -->
+  <script type="module" src="js/statistics.js"></script>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <div class="logo">IOT</div>
+        <div class="brand-text"><div class="line1">System.</div></div>
+      </div>
+      <nav class="nav">
+        <a class="nav-item" href="index.html">Trang chủ</a>
+        <a class="nav-item" href="history.html">Dữ liệu cảm biến</a>
+        <a class="nav-item" href="activity.html">Lịch sử hoạt động</a>
+        <a class="nav-item active" href="statistics.html">Thống kê</a>
+        <a class="nav-item" href="profile.html">Hồ sơ</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <h1>Thống kê hoạt động thiết bị</h1>
+      <button id="btn-settings" class="icon-btn" title="Cài đặt ngưỡng" aria-label="Cài đặt" style="float:right">⚙️</button>
+    </header>
+
+    <!-- Summary Cards -->
+    <section class="summary-cards">
+      <div class="card summary-card">
+        <div class="summary-icon light-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M2 12h3"/>
+            <path d="M19 12h3"/>
+            <path d="M12 2v3"/>
+            <path d="M12 19v3"/>
+            <path d="M4.2 4.2l2.2 2.2"/>
+            <path d="M17.6 17.6l2.2 2.2"/>
+            <path d="M19.8 4.2l-2.2 2.2"/>
+            <path d="M6.4 17.6l-2.2 2.2"/>
+          </svg>
+        </div>
+        <div class="summary-content">
+          <h3>LIGHT</h3>
+          <div class="summary-value">
+            <span id="total-light" class="big-number">0</span>
+            <span class="unit">lượt</span>
+          </div>
+          <div class="summary-time">Hôm nay</div>
+        </div>
+      </div>
+
+      <div class="card summary-card">
+        <div class="summary-icon fan-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4"/>
+            <path d="m16.2 7.8 2.9-2.9"/>
+            <path d="M18 12h4"/>
+            <path d="m16.2 16.2 2.9 2.9"/>
+            <path d="M12 18v4"/>
+            <path d="m4.9 19.1 2.9-2.9"/>
+            <path d="M2 12h4"/>
+            <path d="m4.9 4.9 2.9 2.9"/>
+          </svg>
+        </div>
+        <div class="summary-content">
+          <h3>FAN</h3>
+          <div class="summary-value">
+            <span id="total-fan" class="big-number">0</span>
+            <span class="unit">lượt</span>
+          </div>
+          <div class="summary-time">Hôm nay</div>
+        </div>
+      </div>
+
+      <div class="card summary-card">
+        <div class="summary-icon air-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5 2.2 5 5 5 5-2.2 5-5"/>
+            <circle cx="7" cy="12" r="1"/>
+            <circle cx="12" cy="12" r="1"/>
+            <circle cx="17" cy="12" r="1"/>
+          </svg>
+        </div>
+        <div class="summary-content">
+          <h3>AIR</h3>
+          <div class="summary-value">
+            <span id="total-air" class="big-number">0</span>
+            <span class="unit">lượt</span>
+          </div>
+          <div class="summary-time">Hôm nay</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Activity Table -->
+    <section class="activity-section">
+      <div class="card activity-card">
+        <div class="activity-header">
+          <h3>Bảng xếp hạng hoạt động hôm nay</h3>
+          <div class="activity-info">
+            <span class="info-badge" id="last-update">Cập nhật: --:--:--</span>
+          </div>
+        </div>
+        <div class="activity-body">
+          <table class="activity-table">
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Thiết bị</th>
+                <th>Số lượt bật/tắt</th>
+              </tr>
+            </thead>
+            <tbody id="activity-tbody">
+              <tr data-device="light">
+                <td class="rank-cell">1</td>
+                <td>
+                  <div class="device-info">
+                    <span class="device-icon">💡</span>
+                    <span class="device-name">LIGHT</span>
+                  </div>
+                </td>
+                <td class="count-cell"><span class="device-count">0</span></td>
+              </tr>
+              <tr data-device="fan">
+                <td class="rank-cell">2</td>
+                <td>
+                  <div class="device-info">
+                    <span class="device-icon">🌀</span>
+                    <span class="device-name">FAN</span>
+                  </div>
+                </td>
+                <td class="count-cell"><span class="device-count">0</span></td>
+              </tr>
+              <tr data-device="air">
+                <td class="rank-cell">3</td>
+                <td>
+                  <div class="device-info">
+                    <span class="device-icon">❄️</span>
+                    <span class="device-name">AIR</span>
+                  </div>
+                </td>
+                <td class="count-cell"><span class="device-count">0</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sensor Violations Table -->
+    <section class="activity-section">
+      <div class="card activity-card">
+        <div class="activity-header">
+          <h3>Thống kê vượt ngưỡng cảm biến hôm nay</h3>
+          <div class="activity-info">
+            <span class="info-badge">Số lần chuyển trạng thái</span>
+          </div>
+        </div>
+        <div class="activity-body">
+          <table class="activity-table">
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Cảm biến</th>
+                <th>Ngưỡng</th>
+                <th>Số lần vượt</th>
+              </tr>
+            </thead>
+            <tbody id="violations-tbody">
+              <tr data-sensor="temp">
+                <td class="rank-cell">1</td>
+                <td>
+                  <div class="device-info">
+                    <span class="device-icon">🌡️</span>
+                    <span class="device-name">Nhiệt độ</span>
+                  </div>
+                </td>
+                <td><span id="threshold-temp-display">30</span>°C</td>
+                <td class="count-cell"><span class="violation-count">0</span></td>
+              </tr>
+              <tr data-sensor="hum">
+                <td class="rank-cell">2</td>
+                <td>
+                  <div class="device-info">
+                    <span class="device-icon">💧</span>
+                    <span class="device-name">Độ ẩm</span>
+                  </div>
+                </td>
+                <td><span id="threshold-hum-display">80</span>%</td>
+                <td class="count-cell"><span class="violation-count">0</span></td>
+              </tr>
+              <tr data-sensor="light">
+                <td class="rank-cell">3</td>
+                <td>
+                  <div class="device-info">
+                    <span class="device-icon">☀️</span>
+                    <span class="device-name">Ánh sáng</span>
+                  </div>
+                </td>
+                <td><span id="threshold-light-display">800</span> Lux</td>
+                <td class="count-cell"><span class="violation-count">0</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal" aria-hidden="true" style="display:none">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-header">
+      <h3 id="settings-title">Cài đặt ngưỡng cảnh báo</h3>
+      <button id="settings-close" class="icon-btn" aria-label="Đóng">✖</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Ngưỡng cảnh báo</label>
+        <p style="font-size: 13px; color: #6b7280; margin-bottom: 1rem;">
+          💡 Khi giá trị cảm biến vượt quá ngưỡng này, hệ thống sẽ đếm số lần vượt và cảnh báo.
+        </p>
+        <div class="grid2">
+          <div><small>Nhiệt độ (°C)</small><input type="number" id="th-temp" min="-50" max="100" step="0.5" value="30"></div>
+          <div><small>Độ ẩm (%)</small><input type="number" id="th-hum" min="0" max="100" step="1" value="80"></div>
+          <div><small>Ánh sáng (Lux)</small><input type="number" id="th-light" min="0" max="100000" step="1" value="800"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="settings-save" class="btn-primary">Lưu</button>
+      <button id="settings-cancel" class="btn-secondary">Hủy</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

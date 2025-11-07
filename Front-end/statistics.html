@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IOT System - Thống kê</title>
+  <link rel="icon" type="image/png" href="img/iot.png" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/common.css" />
+  <link rel="stylesheet" href="css/statistics.css" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <!-- Script -->
+  <script type="module" src="js/statistics.js"></script>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <div class="logo">IOT</div>
+        <div class="brand-text"><div class="line1">System.</div></div>
+      </div>
+      <nav class="nav">
+        <a class="nav-item" href="index.html">Trang chủ</a>
+        <a class="nav-item" href="history.html">Dữ liệu cảm biến</a>
+        <a class="nav-item" href="activity.html">Lịch sử hoạt động</a>
+        <a class="nav-item active" href="statistics.html">Thống kê</a>
+        <a class="nav-item" href="profile.html">Hồ sơ</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <h1>Thống kê vượt ngưỡng</h1>
+    </header>
+
+    <!-- Summary Cards -->
+    <section class="summary-cards">
+      <div class="card summary-card">
+        <div class="summary-icon temp-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0Z"/>
+          </svg>
+        </div>
+        <div class="summary-content">
+          <h3>Nhiệt độ</h3>
+          <div class="summary-value">
+            <span id="total-temp" class="big-number">0</span>
+            <span class="unit">lượt</span>
+          </div>
+          <div class="summary-threshold">Ngưỡng: <span id="threshold-temp">--</span>°C</div>
+        </div>
+      </div>
+
+      <div class="card summary-card">
+        <div class="summary-icon hum-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#06b6d4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3c3 4 7 7 7 10a7 7 0 1 1-14 0c0-3 4-6 7-10Z"/>
+          </svg>
+        </div>
+        <div class="summary-content">
+          <h3>Độ ẩm</h3>
+          <div class="summary-value">
+            <span id="total-hum" class="big-number">0</span>
+            <span class="unit">lượt</span>
+          </div>
+          <div class="summary-threshold">Ngưỡng: <span id="threshold-hum">--</span>%</div>
+        </div>
+      </div>
+
+      <div class="card summary-card">
+        <div class="summary-icon light-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#22c55e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M2 12h3"/>
+            <path d="M19 12h3"/>
+            <path d="M12 2v3"/>
+            <path d="M12 19v3"/>
+            <path d="M4.2 4.2l2.2 2.2"/>
+            <path d="M17.6 17.6l2.2 2.2"/>
+            <path d="M19.8 4.2l-2.2 2.2"/>
+            <path d="M6.4 17.6l-2.2 2.2"/>
+          </svg>
+        </div>
+        <div class="summary-content">
+          <h3>Ánh sáng</h3>
+          <div class="summary-value">
+            <span id="total-light" class="big-number">0</span>
+            <span class="unit">lượt</span>
+          </div>
+          <div class="summary-threshold">Ngưỡng: <span id="threshold-light">--</span> Lux</div>
+        </div>
+      </div>
+
+      <div class="card summary-card">
+        <div class="summary-icon dust-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#a855f7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5 2.2 5 5 5 5-2.2 5-5"/>
+            <circle cx="7" cy="12" r="1"/>
+            <circle cx="12" cy="12" r="1"/>
+            <circle cx="17" cy="12" r="1"/>
+          </svg>
+        </div>
+        <div class="summary-content">
+          <h3>Độ bụi</h3>
+          <div class="summary-value">
+            <span id="total-dust" class="big-number">0</span>
+            <span class="unit">lượt</span>
+          </div>
+          <div class="summary-threshold">Ngưỡng: <span id="threshold-dust">--</span> µg/m³</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chart Section -->
+    <section class="charts-section">
+      <div class="card chart-card">
+        <div class="chart-header">
+          <h3>Biểu đồ thống kê vượt ngưỡng</h3>
+          <div class="chart-actions">
+            <select id="time-range" class="time-select">
+              <option value="24h">24 giờ qua</option>
+              <option value="7d" selected>7 ngày qua</option>
+              <option value="30d">30 ngày qua</option>
+              <option value="all">Toàn bộ</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-canvas">
+          <canvas id="statistics-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Rankings Table -->
+    <section class="rankings-section">
+      <div class="card rankings-card">
+        <div class="rankings-header">
+          <h3>Bảng xếp hạng vượt ngưỡng</h3>
+          <div class="rankings-info">
+            <span class="info-badge">Sắp xếp: Giảm dần</span>
+          </div>
+        </div>
+        <div class="rankings-body">
+          <div class="ranking-item" data-rank="1">
+            <div class="rank-badge gold">1</div>
+            <div class="rank-sensor">
+              <div class="rank-icon temp-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0Z"/>
+                </svg>
+              </div>
+              <div class="rank-info">
+                <h4 id="rank1-name">Nhiệt độ</h4>
+                <p class="rank-threshold">Ngưỡng: <span id="rank1-threshold">30°C</span></p>
+              </div>
+            </div>
+            <div class="rank-count">
+              <span id="rank1-count" class="count-number">0</span>
+              <span class="count-label">lượt</span>
+            </div>
+          </div>
+
+          <div class="ranking-item" data-rank="2">
+            <div class="rank-badge silver">2</div>
+            <div class="rank-sensor">
+              <div class="rank-icon hum-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#06b6d4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3c3 4 7 7 7 10a7 7 0 1 1-14 0c0-3 4-6 7-10Z"/>
+                </svg>
+              </div>
+              <div class="rank-info">
+                <h4 id="rank2-name">Độ ẩm</h4>
+                <p class="rank-threshold">Ngưỡng: <span id="rank2-threshold">80%</span></p>
+              </div>
+            </div>
+            <div class="rank-count">
+              <span id="rank2-count" class="count-number">0</span>
+              <span class="count-label">lượt</span>
+            </div>
+          </div>
+
+          <div class="ranking-item" data-rank="3">
+            <div class="rank-badge bronze">3</div>
+            <div class="rank-sensor">
+              <div class="rank-icon light-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#22c55e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="5"/>
+                  <path d="M2 12h3"/>
+                  <path d="M19 12h3"/>
+                  <path d="M12 2v3"/>
+                  <path d="M12 19v3"/>
+                  <path d="M4.2 4.2l2.2 2.2"/>
+                  <path d="M17.6 17.6l2.2 2.2"/>
+                  <path d="M19.8 4.2l-2.2 2.2"/>
+                  <path d="M6.4 17.6l-2.2 2.2"/>
+                </svg>
+              </div>
+              <div class="rank-info">
+                <h4 id="rank3-name">Ánh sáng</h4>
+                <p class="rank-threshold">Ngưỡng: <span id="rank3-threshold">800 Lux</span></p>
+              </div>
+            </div>
+            <div class="rank-count">
+              <span id="rank3-count" class="count-number">0</span>
+              <span class="count-label">lượt</span>
+            </div>
+          </div>
+
+          <div class="ranking-item" data-rank="4">
+            <div class="rank-badge">4</div>
+            <div class="rank-sensor">
+              <div class="rank-icon dust-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#a855f7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12c0-2.8 2.2-5 5-5s5 2.2 5 5 2.2 5 5 5 5-2.2 5-5"/>
+                  <circle cx="7" cy="12" r="1"/>
+                  <circle cx="12" cy="12" r="1"/>
+                  <circle cx="17" cy="12" r="1"/>
+                </svg>
+              </div>
+              <div class="rank-info">
+                <h4 id="rank4-name">Độ bụi</h4>
+                <p class="rank-threshold">Ngưỡng: <span id="rank4-threshold">100 µg/m³</span></p>
+              </div>
+            </div>
+            <div class="rank-count">
+              <span id="rank4-count" class="count-number">0</span>
+              <span class="count-label">lượt</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

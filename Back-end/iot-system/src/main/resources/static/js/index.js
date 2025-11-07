@@ -369,14 +369,13 @@ function updateSensorCards(latest) {
     const tempCard = select('card-temp');
     if (tempCard) {
       tempCard.classList.remove('alert-soft','alert-hard','alert');
-      if (latest.temperature > settings.thresholds.temp) tempCard.classList.add('alert-hard');
-      if (tempCard.classList.contains('alert-hard')) {
+      if (latest.temperature > settings.thresholds.temp) {
+        tempCard.classList.add('alert-hard');
         const now = performance.now();
         if (now - lastFlashAt.temp > 2000) {
           lastFlashAt.temp = now;
           tempCard.classList.add('alert-flash');
           setTimeout(() => tempCard.classList.remove('alert-flash'), 700);
-          // First flash stronger using GSAP
           gsap.fromTo('#icon-temp svg', { scale: 1 }, { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 });
         }
       }
@@ -412,8 +411,8 @@ function updateSensorCards(latest) {
     const humCard = select('card-hum');
     if (humCard) {
       humCard.classList.remove('alert-soft','alert-hard','alert');
-      if (latest.humidity > settings.thresholds.hum) humCard.classList.add('alert-hard');
-      if (humCard.classList.contains('alert-hard')) {
+      if (latest.humidity > settings.thresholds.hum) {
+        humCard.classList.add('alert-hard');
         const now = performance.now();
         if (now - lastFlashAt.hum > 2000) {
           lastFlashAt.hum = now;
@@ -454,8 +453,8 @@ function updateSensorCards(latest) {
     const lightCard = select('card-light');
     if (lightCard) {
       lightCard.classList.remove('alert-soft','alert-hard','alert');
-      if (latest.light > settings.thresholds.light) lightCard.classList.add('alert-hard');
-      if (lightCard.classList.contains('alert-hard')) {
+      if (latest.light > settings.thresholds.light) {
+        lightCard.classList.add('alert-hard');
         const now = performance.now();
         if (now - lastFlashAt.light > 2000) {
           lastFlashAt.light = now;
