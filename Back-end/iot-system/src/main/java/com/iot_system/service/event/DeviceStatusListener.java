@@ -128,7 +128,11 @@ public class DeviceStatusListener {
                 wsPayload.put("light", light);
                 DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
                 wsPayload.put("recordedAt", LocalDateTime.now().format(fmt));
+                
+                log.info("[WS] Sending sensor data to /topic/sensors: temp={}, hum={}, light={}", 
+                    temperature, humidity, light);
                 wsTemplate.convertAndSend("/topic/sensors", wsPayload);
+                log.info("[WS] Sensor data sent successfully to /topic/sensors");
 
                 
 

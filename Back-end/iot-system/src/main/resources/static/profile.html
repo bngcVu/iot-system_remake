@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IOT System - Hồ sơ</title>
+  <link rel="stylesheet" href="css/common.css"/>
+  <link rel="stylesheet" href="css/profile.css"/>
+  <link rel="icon" type="image/png" href="img/iot.png"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="js/profile.js"></script>
+</head>
+<body class="profile-page">
+<div class="app">
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <div class="logo">IOT</div>
+        <div class="brand-text"><div class="line1">System.</div></div>
+      </div>
+      <nav class="nav">
+        <a class="nav-item" href="index.html">Trang chủ</a>
+        <a class="nav-item" href="history.html">Dữ liệu cảm biến</a>
+        <a class="nav-item" href="activity.html">Lịch sử hoạt động</a>
+        <a class="nav-item active" href="profile.html">Hồ sơ</a>
+      </nav>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1>Hồ sơ</h1>
+    </header>
+
+    <!-- Hero/banner -->
+    <section class="profile-hero"></section>
+
+    <!-- Profile header giống bố cục GitHub: avatar lớn + tên + email -->
+  <section class="card profile-card">
+      <div class="profile-header large">
+        <img src="img/vu.jpg" alt="avatar" class="avatar-hero"/>
+        <div class="identity">
+          <div class="fullname"><i class="fa-solid fa-user"></i><span>Bùi Ngọc Vũ</span></div>
+          <div class="email">buingocvuuu@gmail.com</div>
+        </div>
+      </div>
+
+      <hr style="margin:2rem 0; border:none; border-top:1px solid #e5e7eb"/>
+
+      
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Họ và tên</label>
+          <div style="position:relative;">
+            <i class="fa-solid fa-user" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+            <input type="text" data-profile="fullname" value="Bùi Ngọc Vũ" style="padding-left:34px;"/>
+          </div>
+        </div>
+        <div class="field">
+          <label>Ngày sinh</label>
+          <div style="position:relative;">
+            <i class="fa-solid fa-cake-candles" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+            <input type="text" value="" placeholder="07/07/2003" readonly style="padding-left:34px;"/>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Mã sinh viên</label>
+          <div style="position:relative;">
+            <i class="fa-regular fa-id-card" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+            <input type="text" data-profile="studentId" value="B22DCCN910" style="padding-left:34px;"/>
+          </div>
+        </div>
+        <div class="field">
+          <label>Mã lớp</label>
+          <div style="position:relative;">
+            <i class="fa-solid fa-tag" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+            <input type="text" value="D22HTTT05" readonly style="padding-left:34px;"/>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>GitHub</label>
+          <div class="input-row" style="gap:0.5rem; align-items:center;">
+            <div style="position:relative;flex:1;">
+              <i class="fa-brands fa-github" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+              <input id="githubLink" class="thread-opener" type="text" value="https://github.com/bngcVu/iot-system-smart" readonly style="padding-left:34px; cursor:pointer;"/>
+            </div>
+            <button class="btn btn-secondary thread-open-btn" data-target="githubLink" title="Mở thread"><i class="fa-solid fa-up-right-from-square"></i></button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Figma</label>
+          <div class="input-row" style="gap:0.5rem; align-items:center;">
+            <div style="position:relative;flex:1;">
+              <i class="fa-brands fa-figma" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+              <input id="figmaLink" class="thread-opener" type="text" value="https://www.figma.com/design/izKVYF7ZHibKTZa302cZMI/IOT-UNG-DUNG?node-id=0-1&p=f&t=0X7zS1zu1mi6mvTW-0" readonly style="padding-left:34px; cursor:pointer;"/>
+            </div>
+            <button class="btn btn-secondary thread-open-btn" data-target="figmaLink" title="Mở thread"><i class="fa-solid fa-up-right-from-square"></i></button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>API Docs</label>
+          <div class="input-row" style="gap:0.5rem; align-items:center;">
+            <div style="position:relative;flex:1;">
+              <i class="fa-solid fa-book" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+              <input id="apiDocsLink" class="thread-opener" type="text" value="http://localhost:8081/swagger-ui/index.html" readonly style="padding-left:34px; cursor:pointer;"/>
+            </div>
+            <button class="btn btn-secondary thread-open-btn" data-target="apiDocsLink" title="Mở Swagger UI"><i class="fa-solid fa-up-right-from-square"></i></button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>PDF</label>
+          <div class="input-row" style="gap:0.5rem; align-items:center;">
+            <div style="position:relative;flex:1;">
+              <i class="fa-solid fa-file-pdf" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7280;"></i>
+              <input id="pdfReportLink" class="thread-opener" type="text" value="BAOCAO.pdf" readonly style="padding-left:34px; cursor:pointer;"/>
+            </div>
+            <button class="btn btn-secondary thread-open-btn" data-target="pdfReportLink" title="Mở PDF"><i class="fa-solid fa-up-right-from-square"></i></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    
+
+
+  </main>
+</div>
+</body>
+</html>
+
+

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử hoạt động - IoT System</title>
+    <link rel="icon" type="image/png" href="img/iot.png" />
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/common.css" />
+    <link rel="stylesheet" href="css/history.css" />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div>
+                <div class="brand">
+                    <div class="logo">IOT</div>
+                    <div class="brand-text"><div class="line1">System.</div></div>
+                </div>
+                <nav class="nav">
+                    <a class="nav-item" href="index.html">Trang chủ</a>
+                    <a class="nav-item" href="history.html">Dữ liệu cảm biến</a>
+                    <a class="nav-item active" href="activity.html">Lịch sử hoạt động</a>
+                    <a class="nav-item" href="profile.html">Hồ sơ</a>
+                </nav>
+            </div>
+        </aside>
+
+        <main class="main activity-page">
+            <header class="topbar">
+                <h1>Lịch sử hoạt động</h1>
+            </header>
+
+            <div class="search-section">
+                <div class="search-controls">
+                    <!-- Tìm kiếm -->
+                    <div class="search-group">
+                        <div class="search-input-wrapper">
+                            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                            <input type="text" id="searchInput" placeholder="Nhập tìm kiếm..." class="search-input">
+                        </div>
+                    </div>
+                    
+                    <!-- Sắp xếp -->
+                    <div class="filter-group-inline">
+                        <label for="sortSelect">Sắp xếp:</label>
+                        <select id="sortSelect" class="filter-select">
+                            <option value="desc">Mới nhất</option>
+                            <option value="asc">Cũ nhất</option>
+                        </select>
+                    </div>
+                    
+                    <div class="column-filter-inline">
+                        <select id="actionFilter" class="filter-select">
+                            <option value="">Tất cả hành động</option>
+                            <option value="ON">BẬT</option>
+                            <option value="OFF">TẮT</option>
+                        </select>
+                    </div>
+
+                    <!-- Chọn thiết bị -->
+                    <div class="column-filter-inline">
+                        <select id="deviceFilter" class="filter-select">
+                            <option value="">Tất cả thiết bị</option>
+                            <option value="LIGHT">LIGHT</option>
+                            <option value="FAN">FAN</option>
+                            <option value="AIR">AIR</option>
+                        </select>
+                    </div>
+                    
+               <!-- Sub tìm kiếm -->
+               <div class="search-submit-group">
+                   <button id="searchBtn" class="btn btn-primary">
+                       <span class="btn-text">Tìm kiếm</span>
+                   </button>
+                    <button id="refreshActivityBtn" type="button" class="btn btn-secondary" title="Làm mới trang" style="margin-left:8px;display:flex;align-items:center;gap:6px">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10" />
+                            <polyline points="23 20 23 14 17 14" />
+                            <path d="M20.49 9A9 9 0 0 0 6.74 5.15L1 10m22 4-5.74 4.85A9 9 0 0 1 3.51 15" />
+                        </svg>
+                        <span>Làm mới</span>
+                    </button>
+               </div>
+                </div>
+            </div>
+
+            <div class="data-section">
+                <!-- Page size selector at top -->
+                <div class="page-size-controls" style="display:flex;justify-content:flex-end;align-items:center;gap:12px">
+                    <button id="btn-export-csv-activity" class="btn btn-secondary" style="display:flex;align-items:center;gap:6px">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>CSV</span>
+                    </button>
+                    <span style="opacity:.6">|</span>
+                    <div class="page-size-selector" style="display:flex;align-items:center;gap:6px">
+                        <label for="pageSizeSelect">Hiển thị</label>
+                        <select id="pageSizeSelect" class="filter-select">
+                            <option value="15">15 bản ghi</option>
+                            <option value="30">30 bản ghi</option>
+                            <option value="50">50 bản ghi</option>
+                            <option value="100">100 bản ghi</option>
+                            <option value="1000">Tất cả</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="activityDataTable" class="display" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Tên thiết bị</th>
+                                <th>Hành động</th>
+                                <th>Thời gian thực hiện</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination Controls at bottom -->
+                <div class="pagination-controls pagination-bottom">
+                    <div class="pagination-info" id="recordCount">Hiển thị 0 bản ghi (trang 1/1)</div>
+                    <div class="pagination-buttons">
+                        <button id="prevPageBottom" class="btn btn-secondary" disabled>
+                            <span>← Trước</span>
+                        </button>
+                        <div class="page-numbers" id="pageNumbersBottom">
+                            <!-- Page numbers will be generated here -->
+                        </div>
+                        <button id="nextPageBottom" class="btn btn-secondary">
+                            <span>Sau →</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="js/activity.js?v=4"></script>
+</body>
+</html>

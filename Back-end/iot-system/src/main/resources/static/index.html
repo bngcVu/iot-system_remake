@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IOT System - Trang chủ</title>
+  <link rel="icon" type="image/png" href="img/iot.png" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/common.css" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <!-- ApexCharts -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5"></script>
+  <!-- SockJS + STOMP -->
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+  <!-- Script -->
+  <script type="module" src="js/index.js?v=2"></script>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <div class="logo">IOT</div>
+        <div class="brand-text"><div class="line1">System.</div></div>
+      </div>
+                <nav class="nav">
+                    <a class="nav-item active" href="index.html">Trang chủ</a>
+                    <a class="nav-item" href="history.html">Dữ liệu cảm biến</a>
+                    <a class="nav-item" href="activity.html">Lịch sử hoạt động</a>
+                    <a class="nav-item" href="profile.html">Hồ sơ</a>
+                </nav>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <h1>Trang chủ</h1>
+      <button id="btn-settings" class="icon-btn" title="Cài đặt" aria-label="Cài đặt" style="float:right">⚙️</button>
+    </header>
+
+    <!-- Device cards -->
+    <section class="cards">
+      <div class="card device">
+        <div class="card-header">
+          <h3><span class="dev-icon" id="icon-light"></span>LIGHT</h3>
+          <label class="switch">
+            <input type="checkbox" id="led0-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+      </div>
+
+      <div class="card device">
+        <div class="card-header">
+          <h3><span class="dev-icon" id="icon-fan"></span>FAN</h3>
+          <label class="switch">
+            <input type="checkbox" id="led1-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+      </div>
+
+      <div class="card device">
+        <div class="card-header">
+          <h3><span class="dev-icon" id="icon-air"></span>AIR</h3>
+          <label class="switch">
+            <input type="checkbox" id="led2-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        
+      </div>
+    </section>
+
+    <!-- Sensor cards -->
+    <section class="sensor-cards">
+      <div class="card sensor" id="card-temp">
+        <div class="sensor-header"><h3><span class="dev-icon" id="icon-temp"></span>Nhiệt độ</h3></div>
+        <div class="sensor-body">
+          <div class="skeleton-line" id="sk-temp" style="display:none"></div>
+          <div class="sensor-value"><span id="trend-temp" class="trend-arrow"></span><strong id="box-temp">--</strong> °C <span id="delta-temp" class="delta-badge">--</span></div>
+          <div class="sensor-time">Cập nhật: <span id="box-temp-time">--:--:--</span></div>
+        </div>
+      </div>
+
+      <div class="card sensor" id="card-hum">
+        <div class="sensor-header"><h3><span class="dev-icon" id="icon-hum"></span>Độ ẩm</h3></div>
+        <div class="sensor-body">
+          <div class="skeleton-line" id="sk-hum" style="display:none"></div>
+          <div class="sensor-value"><span id="trend-hum" class="trend-arrow"></span><strong id="box-hum">--</strong> % <span id="delta-hum" class="delta-badge">--</span></div>
+          <div class="sensor-time">Cập nhật: <span id="box-hum-time">--:--:--</span></div>
+        </div>
+      </div>
+
+      <div class="card sensor" id="card-light">
+        <div class="sensor-header"><h3><span class="dev-icon" id="icon-light-sensor"></span>Ánh sáng</h3></div>
+        <div class="sensor-body">
+          <div class="skeleton-line" id="sk-light" style="display:none"></div>
+          <div class="sensor-value"><span id="trend-light" class="trend-arrow"></span><strong id="box-light">--</strong> Lux <span id="delta-light" class="delta-badge">--</span></div>
+          <div class="sensor-time">Cập nhật: <span id="box-light-time">--:--:--</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Combined Chart -->
+    <section class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Dữ liệu cảm biến</h3>
+          <div class="chart-actions">
+            <button id="btn-pause" class="chip">Pause</button>
+            <button id="btn-export-csv" class="chip">Export CSV</button>
+            <button id="btn-save-png" class="chip">Save PNG</button>
+            <select id="data-window" class="window-select">
+            <option value="5">5 dữ liệu gần nhất</option>
+            <option value="15" selected>15 dữ liệu gần nhất</option>
+            <option value="30">30 dữ liệu gần nhất</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-canvas"><div id="chart-skeleton" class="skeleton-block" style="display:none"></div><div id="combinedChart"></div></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal" aria-hidden="true" style="display:none">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-header">
+      <h3 id="settings-title">Cài đặt</h3>
+      <button id="settings-close" class="icon-btn" aria-label="Đóng">✖</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Ngưỡng cảnh báo</label>
+        <div class="grid2">
+          <div><small>Nhiệt độ (°C)</small><input type="number" id="th-temp" min="-50" max="100" step="0.5"></div>
+          <div><small>Độ ẩm (%)</small><input type="number" id="th-hum" min="0" max="100" step="1"></div>
+          <div><small>Ánh sáng (Lux)</small><input type="number" id="th-light" min="0" max="100000" step="1"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        
+      </div>
+      
+    </div>
+    <div class="modal-footer">
+      <button id="settings-save" class="btn-primary">Lưu</button>
+      <button id="settings-cancel" class="btn-secondary">Hủy</button>
+    </div>
+  </div>
+</div>
+
+ 
+</body>
+</html>
