@@ -99,58 +99,24 @@ function formatTimeDisplay(dateString) {
 // Fetch device actions and count on/off events
 async function fetchStatistics(timeRange = 'today') {
   try {
-    // Calculate date range - always today (0h to 24h)
+    // Calculate date - always today
     const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0); // Start of today
-    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999); // End of today
-
-    // Format date as dd-MM-yyyy for API
     const pad = (n) => n < 10 ? '0' + n : n;
-    const dateStr = `${pad(startDate.getDate())}-${pad(startDate.getMonth() + 1)}-${startDate.getFullYear()}`;
+    const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
     
-    console.log('Fetching device actions for:', dateStr);
+    console.log('Fetching device action counts from Backend for:', dateStr);
 
-    // Fetch device actions within time range with large page size
-    // Add cache buster to force fresh data
-    const cacheBuster = `&_t=${Date.now()}`;
-    const response = await fetch(`${ENDPOINTS.actionsSearch}?dateStr=${dateStr}&page=0&size=10000&sort=asc${cacheBuster}`);
+    // Call new Backend API (server-side counting)
+    const response = await fetch(`${ENDPOINTS.statisticsDeviceActions}?date=${dateStr}`);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch device actions');
+      throw new Error('Failed to fetch device action statistics');
     }
 
-    const result = await response.json();
-    const actions = result.data || [];
-    console.log('Total device actions today:', actions.length);
-    console.log('Sample actions:', actions.slice(0, 5));
+    const counts = await response.json(); // {light: X, fan: Y, air: Z}
+    console.log('Device action counts (ON only):', counts);
 
-    // Count ON actions only for each device
-    const counts = {
-      light: 0,
-      fan: 0,
-      air: 0
-    };
-
-    actions.forEach(action => {
-      const deviceName = action.deviceName ? action.deviceName.toUpperCase() : '';
-      const actionType = action.action ? action.action.toString().toUpperCase() : '';
-      
-      // Only count ON actions
-      if (actionType === 'ON') {
-        console.log('ON Action:', deviceName, action.executedAt);
-        
-        if (deviceName === 'LIGHT') {
-          counts.light++;
-        } else if (deviceName === 'FAN') {
-          counts.fan++;
-        } else if (deviceName === 'AIR') {
-          counts.air++;
-        }
-      }
-    });
-
-    console.log('Final ON action counts:', counts);
-
+    // Return in expected format for UI
     return { violations: counts };
   } catch (error) {
     console.error('Error fetching statistics:', error);
@@ -162,87 +128,26 @@ async function fetchStatistics(timeRange = 'today') {
 async function fetchSensorViolations() {
   try {
     const now = new Date();
-    const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
-    // Format date as dd-MM-yyyy for API (just the date, not time range)
     const pad = (n) => n < 10 ? '0' + n : n;
-    const dateStr = `${pad(startDate.getDate())}-${pad(startDate.getMonth() + 1)}-${startDate.getFullYear()}`;
+    const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
     
-    console.log('[Violations] Fetching sensor data for date:', dateStr);
-    console.log('[Violations] Current thresholds:', JSON.stringify(settings.thresholds));
+    console.log('[Violations] Fetching violation counts from Backend for date:', dateStr);
+    console.log('[Violations] Using thresholds:', JSON.stringify(settings.thresholds));
 
-    // Fetch sensor data - use dateStr parameter (Backend will return all data for that day)
-    const cacheBuster = `&_t=${Date.now()}`;
-    const response = await fetch(`${ENDPOINTS.sensors}?dateStr=${dateStr}&page=0&size=10000&sort=asc${cacheBuster}`, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
-    });
+    // Call new Backend API (server-side counting with thresholds)
+    const url = `${ENDPOINTS.statisticsViolations}?date=${dateStr}&temp=${settings.thresholds.temp}&hum=${settings.thresholds.hum}&light=${settings.thresholds.light}`;
+    const response = await fetch(url);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch sensor data');
+      throw new Error('Failed to fetch sensor violation statistics');
     }
 
-    const result = await response.json();
-    const data = result.data || [];
-    console.log('[Violations] Total sensor records today:', data.length);
-    if (data.length > 0) {
-      console.log('[Violations] Sample data:', data.slice(0, 3));
-    }
-
-    // Count threshold violations - count EVERY record that exceeds threshold
-    const violations = {
-      temp: 0,
-      hum: 0,
-      light: 0
-    };
-
-    // Sort by timestamp
-    const sortedData = data.sort((a, b) => {
-      const timeA = new Date(a.recordedAt || a.timestamp || a.createdAt).getTime();
-      const timeB = new Date(b.recordedAt || b.timestamp || b.createdAt).getTime();
-      return timeA - timeB;
-    });
-
-    console.log('[Violations] Processing', sortedData.length, 'records...');
-
-    // Count every record that exceeds threshold
-    sortedData.forEach((record, index) => {
-      // Check temperature
-      const tempValue = parseFloat(record.temperature);
-      if (tempValue > settings.thresholds.temp) {
-        violations.temp++;
-        if (violations.temp <= 3) { // Log first 3 for debugging
-          console.log(`[Violations] Temp #${violations.temp} at record ${index}: ${tempValue}°C > ${settings.thresholds.temp}°C`);
-        }
-      }
-
-      // Check humidity
-      const humValue = parseFloat(record.humidity);
-      if (humValue > settings.thresholds.hum) {
-        violations.hum++;
-        if (violations.hum <= 3) {
-          console.log(`[Violations] Hum #${violations.hum} at record ${index}: ${humValue}% > ${settings.thresholds.hum}%`);
-        }
-      }
-
-      // Check light
-      const lightValue = parseFloat(record.light);
-      if (lightValue > settings.thresholds.light) {
-        violations.light++;
-        if (violations.light <= 3) {
-          console.log(`[Violations] Light #${violations.light} at record ${index}: ${lightValue} Lux > ${settings.thresholds.light} Lux`);
-        }
-      }
-    });
-
-    console.log('[Violations] Summary:');
+    const violations = await response.json(); // {temp: X, hum: Y, light: Z}
+    
+    console.log('[Violations] Summary from Backend:');
     console.log('  - Temperature: ', violations.temp, 'records exceeded', settings.thresholds.temp, '°C');
     console.log('  - Humidity: ', violations.hum, 'records exceeded', settings.thresholds.hum, '%');
     console.log('  - Light: ', violations.light, 'records exceeded', settings.thresholds.light, 'Lux');
-    console.log('[Violations] Final count:', violations);
 
     return violations;
   } catch (error) {

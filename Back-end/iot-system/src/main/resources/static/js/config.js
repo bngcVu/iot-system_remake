@@ -8,7 +8,10 @@ export const ENDPOINTS = {
   devices: `${API_BASE}/api/devices`,
   deviceCommand: `${API_BASE}/api/devices/command`,
   sensors: `${API_BASE}/api/sensor-data`,
-  actionsSearch: `${API_BASE}/api/device-actions/search`
+  actionsSearch: `${API_BASE}/api/device-actions/search`,
+  // Statistics endpoints (server-side counting)
+  statisticsDeviceActions: `${API_BASE}/api/statistics/device-actions`,
+  statisticsViolations: `${API_BASE}/api/statistics/violations`
 };
 
 // WebSocket (STOMP + SockJS)

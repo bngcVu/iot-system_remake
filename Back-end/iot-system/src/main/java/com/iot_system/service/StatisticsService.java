@@ -1,0 +1,135 @@
+package com.iot_system.service;
+
+import com.iot_system.domain.dto.DeviceActionsCountDTO;
+import com.iot_system.domain.dto.SensorViolationsCountDTO;
+import com.iot_system.repository.DeviceActionHistoryRepository;
+import com.iot_system.repository.SensorDataRepository;
+import org.springframework.stereotype.Service;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+@Service
+public class StatisticsService {
+
+    private final EntityManager entityManager;
+    private final DeviceActionHistoryRepository actionHistoryRepository;
+    private final SensorDataRepository sensorDataRepository;
+
+    public StatisticsService(EntityManager entityManager,
+                           DeviceActionHistoryRepository actionHistoryRepository,
+                           SensorDataRepository sensorDataRepository) {
+        this.entityManager = entityManager;
+        this.actionHistoryRepository = actionHistoryRepository;
+        this.sensorDataRepository = sensorDataRepository;
+    }
+
+    /**
+     * Count device ON actions for a specific date
+     * Returns count grouped by device name (LIGHT, FAN, AIR)
+     */
+    public DeviceActionsCountDTO countDeviceActions(String dateStr) {
+        LocalDate date = parseDate(dateStr);
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+
+        String sql = """
+            SELECT d.name, COUNT(*) as cnt
+            FROM device_action_history h
+            JOIN device d ON h.device_id = d.id
+            WHERE h.executed_at >= :start 
+              AND h.executed_at < :end
+              AND h.action = 'ON'
+            GROUP BY d.name
+            """;
+
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("start", startOfDay);
+        query.setParameter("end", endOfDay);
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> results = query.getResultList();
+
+        int light = 0, fan = 0, air = 0;
+        for (Object[] row : results) {
+            String deviceName = (String) row[0];
+            int count = ((Number) row[1]).intValue();
+            
+            if ("LIGHT".equalsIgnoreCase(deviceName)) {
+                light = count;
+            } else if ("FAN".equalsIgnoreCase(deviceName)) {
+                fan = count;
+            } else if ("AIR".equalsIgnoreCase(deviceName)) {
+                air = count;
+            }
+        }
+
+        return new DeviceActionsCountDTO(light, fan, air);
+    }
+
+    /**
+     * Count sensor violations for a specific date and thresholds
+     * Returns count of records exceeding each threshold
+     */
+    public SensorViolationsCountDTO countSensorViolations(String dateStr, 
+                                                         Double tempThreshold,
+                                                         Double humThreshold,
+                                                         Double lightThreshold) {
+        LocalDate date = parseDate(dateStr);
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+
+        // Count temperature violations
+        String tempSql = """
+            SELECT COUNT(*) FROM sensor_data
+            WHERE recorded_at >= :start 
+              AND recorded_at < :end
+              AND temperature > :threshold
+            """;
+        Query tempQuery = entityManager.createNativeQuery(tempSql);
+        tempQuery.setParameter("start", startOfDay);
+        tempQuery.setParameter("end", endOfDay);
+        tempQuery.setParameter("threshold", tempThreshold);
+        int tempCount = ((Number) tempQuery.getSingleResult()).intValue();
+
+        // Count humidity violations
+        String humSql = """
+            SELECT COUNT(*) FROM sensor_data
+            WHERE recorded_at >= :start 
+              AND recorded_at < :end
+              AND humidity > :threshold
+            """;
+        Query humQuery = entityManager.createNativeQuery(humSql);
+        humQuery.setParameter("start", startOfDay);
+        humQuery.setParameter("end", endOfDay);
+        humQuery.setParameter("threshold", humThreshold);
+        int humCount = ((Number) humQuery.getSingleResult()).intValue();
+
+        // Count light violations
+        String lightSql = """
+            SELECT COUNT(*) FROM sensor_data
+            WHERE recorded_at >= :start 
+              AND recorded_at < :end
+              AND light > :threshold
+            """;
+        Query lightQuery = entityManager.createNativeQuery(lightSql);
+        lightQuery.setParameter("start", startOfDay);
+        lightQuery.setParameter("end", endOfDay);
+        lightQuery.setParameter("threshold", lightThreshold);
+        int lightCount = ((Number) lightQuery.getSingleResult()).intValue();
+
+        return new SensorViolationsCountDTO(tempCount, humCount, lightCount);
+    }
+
+    /**
+     * Parse date string in format dd-MM-yyyy
+     */
+    private LocalDate parseDate(String dateStr) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        return LocalDate.parse(dateStr, formatter);
+    }
+}
