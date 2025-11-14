@@ -45,7 +45,7 @@ public class DeviceService {
     }
 
     /**
-     * Publish lệnh xuống MQTT (chưa update DB, chờ ACK từ ESP32)
+     * Publish lệnh tới MQTT (chưa update DB, chờ ACK từ ESP32)
      */
     @Transactional
     public String sendCommand(DeviceControlDTO dto) {

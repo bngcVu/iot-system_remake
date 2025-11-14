@@ -251,7 +251,7 @@ async function loadDevices() {
         headers[idx].textContent = title;
       }
     }
-
+      
       const toggle = select(`led${idx}-toggle`);
       if (toggle) {
         toggle.checked = d.state === 'ON';
@@ -271,7 +271,7 @@ async function loadDevices() {
             repeat: 1,
             ease: "power2.inOut"
           });
-          
+          // XỬ LÝ BẬT TẮT THIẾT BỊ
           // Pessimistic: disable toggle và chờ ACK từ hardware
           toggle.disabled = true;
           try {
@@ -336,6 +336,102 @@ function initCharts() {
 }
 
 // --------BOX Dữ liệu cảm biến --------
+/**
+ * Re-check all alerts với settings hiện tại
+ */
+function recheckAllAlerts() {
+  try {
+    // Lấy giá trị sensor hiện tại từ UI
+    const tempEl = select('box-temp');
+    const humEl = select('box-hum');
+    const lightEl = select('box-light');
+    
+    if (!tempEl || !humEl || !lightEl) return;
+    
+    const currentTemp = parseFloat(tempEl.textContent);
+    const currentHum = parseFloat(humEl.textContent);
+    const currentLight = parseFloat(lightEl.textContent);
+    
+    // Tạo object giả để pass vào checkAndApplyAlerts
+    const fakeLatest = {
+      temperature: Number.isFinite(currentTemp) ? currentTemp : NaN,
+      humidity: Number.isFinite(currentHum) ? currentHum : NaN,
+      light: Number.isFinite(currentLight) ? currentLight : NaN,
+      recordedAt: new Date()
+    };
+    
+    console.log('[Settings] Re-checking alerts with new thresholds:', settings.thresholds);
+    console.log('[Settings] Current values:', fakeLatest);
+    
+    //Gọi lại check alerts (sẽ dùng settings mới)
+    checkAndApplyAlerts(fakeLatest);
+    
+  } catch (e) {
+    console.error('[Settings] Error re-checking alerts:', e);
+  }
+}
+
+/**
+ * Tách logic check alerts thành function riêng
+ */
+function checkAndApplyAlerts(latest) {
+  if (!latest) return;
+  
+  // Temperature alert
+  const tempCard = select('card-temp');
+  if (tempCard && Number.isFinite(latest.temperature)) {
+    tempCard.classList.remove('alert-soft', 'alert-hard', 'alert', 'alert-flash');
+    
+    if (latest.temperature > settings.thresholds.temp) {
+      tempCard.classList.add('alert-hard');
+      
+      const now = performance.now();
+      if (now - lastFlashAt.temp > 2000) {
+        lastFlashAt.temp = now;
+        tempCard.classList.add('alert-flash');
+        setTimeout(() => tempCard.classList.remove('alert-flash'), 700);
+        gsap.fromTo('#icon-temp svg', { scale: 1 }, { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 });
+      }
+    }
+  }
+  
+  // Humidity alert
+  const humCard = select('card-hum');
+  if (humCard && Number.isFinite(latest.humidity)) {
+    humCard.classList.remove('alert-soft', 'alert-hard', 'alert', 'alert-flash');
+    
+    if (latest.humidity > settings.thresholds.hum) {
+      humCard.classList.add('alert-hard');
+      
+      const now = performance.now();
+      if (now - lastFlashAt.hum > 2000) {
+        lastFlashAt.hum = now;
+        humCard.classList.add('alert-flash');
+        setTimeout(() => humCard.classList.remove('alert-flash'), 700);
+        gsap.fromTo('#icon-hum svg', { scale: 1 }, { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 });
+      }
+    }
+  }
+  
+  // Light alert
+  const lightCard = select('card-light');
+  if (lightCard && Number.isFinite(latest.light)) {
+    lightCard.classList.remove('alert-soft', 'alert-hard', 'alert', 'alert-flash');
+    
+    if (latest.light > settings.thresholds.light) {
+      lightCard.classList.add('alert-hard');
+      
+      const now = performance.now();
+      if (now - lastFlashAt.light > 2000) {
+        lastFlashAt.light = now;
+        lightCard.classList.add('alert-flash');
+        setTimeout(() => lightCard.classList.remove('alert-flash'), 700);
+        gsap.fromTo('#icon-light-sensor svg', { scale: 1 }, { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 });
+      }
+    }
+  }
+}
+
 function updateSensorCards(latest) {
   if (!latest) return;
   // Chuẩn hóa trường timestamp qua các payload khác nhau
@@ -365,21 +461,6 @@ function updateSensorCards(latest) {
       dTemp.textContent = (deltaNum > 0 ? '+' : '') + delta;
       dTemp.className = 'delta-badge ' + (delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero');
     }
-    // Alert check
-    const tempCard = select('card-temp');
-    if (tempCard) {
-      tempCard.classList.remove('alert-soft','alert-hard','alert');
-      if (latest.temperature > settings.thresholds.temp) {
-        tempCard.classList.add('alert-hard');
-        const now = performance.now();
-        if (now - lastFlashAt.temp > 2000) {
-          lastFlashAt.temp = now;
-          tempCard.classList.add('alert-flash');
-          setTimeout(() => tempCard.classList.remove('alert-flash'), 700);
-          gsap.fromTo('#icon-temp svg', { scale: 1 }, { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 });
-        }
-      }
-    }
   } else {
     select('box-temp').textContent = '--';
     select('box-temp-time').textContent = fmtTime(withTs.recordedAt);
@@ -406,21 +487,6 @@ function updateSensorCards(latest) {
       const delta = formatValueFlexible(deltaNum, 1);
       dHum.textContent = (deltaNum > 0 ? '+' : '') + delta;
       dHum.className = 'delta-badge ' + (delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero');
-    }
-    // Alert check
-    const humCard = select('card-hum');
-    if (humCard) {
-      humCard.classList.remove('alert-soft','alert-hard','alert');
-      if (latest.humidity > settings.thresholds.hum) {
-        humCard.classList.add('alert-hard');
-        const now = performance.now();
-        if (now - lastFlashAt.hum > 2000) {
-          lastFlashAt.hum = now;
-          humCard.classList.add('alert-flash');
-          setTimeout(() => humCard.classList.remove('alert-flash'), 700);
-          gsap.fromTo('#icon-hum svg', { scale: 1 }, { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 });
-        }
-      }
     }
   } else {
     select('box-hum').textContent = '--';
@@ -449,25 +515,13 @@ function updateSensorCards(latest) {
       dLight.textContent = (deltaNum > 0 ? '+' : '') + delta;
       dLight.className = 'delta-badge ' + (delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-zero');
     }
-    // Alert check
-    const lightCard = select('card-light');
-    if (lightCard) {
-      lightCard.classList.remove('alert-soft','alert-hard','alert');
-      if (latest.light > settings.thresholds.light) {
-        lightCard.classList.add('alert-hard');
-        const now = performance.now();
-        if (now - lastFlashAt.light > 2000) {
-          lastFlashAt.light = now;
-          lightCard.classList.add('alert-flash');
-          setTimeout(() => lightCard.classList.remove('alert-flash'), 700);
-          gsap.fromTo('#icon-light-sensor svg', { scale: 1 }, { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 });
-        }
-      }
-    }
   } else {
     select('box-light').textContent = '--';
-    select('box-light-time').textContent = fmtTime(withTs.recordedAt);
+    select('box-temp-time').textContent = fmtTime(withTs.recordedAt);
   }
+  
+  // ✅ Check alerts với settings hiện tại
+  checkAndApplyAlerts(latest);
 }
 
 function fillChartsFromList(list) {
@@ -676,6 +730,10 @@ function bindWindowSelectors() {
     settings.thresholds.light = Number(select('th-light').value);
     // keep defaults for removed fields
     saveSettings();
+    
+    // ✅ Re-check alerts với ngưỡng mới ngay lập tức
+    recheckAllAlerts();
+    
     closeSettings();
   });
 }
@@ -733,6 +791,15 @@ function addHoverEffects() {
 window.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
   applyTheme();
+  
+  // ✅ Listen storage changes từ tabs khác (cross-tab sync)
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'iot_settings') {
+      console.log('[Settings] Updated from another tab');
+      loadSettings();
+      recheckAllAlerts();
+    }
+  });
   initCharts();
   injectIcons();
   injectSensorIcons();

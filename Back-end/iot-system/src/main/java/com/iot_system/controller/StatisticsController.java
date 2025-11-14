@@ -34,9 +34,10 @@ public class StatisticsController {
     @GetMapping("/violations")
     public SensorViolationsCountDTO getSensorViolationCounts(
             @RequestParam(name = "date") String dateStr,
-            @RequestParam(name = "temp", defaultValue = "30") Double tempThreshold,
-            @RequestParam(name = "hum", defaultValue = "80") Double humThreshold,
-            @RequestParam(name = "light", defaultValue = "800") Double lightThreshold) {
-        return statisticsService.countSensorViolations(dateStr, tempThreshold, humThreshold, lightThreshold);
+            @RequestParam(name = "temp", required = true) Double tempThreshold,
+            @RequestParam(name = "hum", required = true) Double humThreshold,
+            @RequestParam(name = "light", required = true) Double lightThreshold) {
+        return statisticsService
+            .countSensorViolations(dateStr, tempThreshold, humThreshold, lightThreshold);
     }
 }

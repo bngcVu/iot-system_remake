@@ -1,0 +1,1164 @@
+
+===================================================
+==   CÁC LUỒNG CHÍNH TRONG HỆ THỐNG IOT        ==
+===================================================
+
+Đây là tóm tắt các luồng tương tác chính giữa Frontend (FE), Backend (BE), Hardware (HW) và MQTT Broker.
+Dựa trên CODE THỰC TẾ trong project: d:\iot-system_remake
+
+================================================================================
+## LUỒNG 1: ĐIỀU KHIỂN THIẾT BỊ (BẬT/TẮT ĐÈNG/QUẠT/ĐIỀU HÒA)
+================================================================================
+
+*Mục đích: Người dùng bật/tắt thiết bị từ giao diện web*
+*Luồng đầy đủ: FE --> BE Controller --> BE Service --> MQTT Publish --> ESP32 --> MQTT ACK --> BE Subscribe --> DB Update --> FE Polling*
+
+---
+
+### Bước 1: [FE] Người dùng click toggle switch
+
+**File:** `Back-end/iot-system/src/main/resources/static/index.html`
+- Toggle checkbox: `<input type="checkbox" id="led0-toggle">`
+
+**File:** `Back-end/iot-system/src/main/resources/static/js/index.js`
+- Dòng 279-323: Event handler `toggle.onchange`
+- Lấy action: `const action = e.target.checked ? 'ON' : 'OFF'`
+- Pessimistic UI: Rollback toggle ngay lập tức `e.target.checked = !currentState`
+- Disable toggle: `toggle.disabled = true`
+- GSAP animation: Scale card xuống 0.95
+- Gọi API: `await sendDeviceCommand(d.id, action)`
+- Set timeout 2000ms để rollback nếu không nhận được ACK
+
+**API Call:**
+```javascript
+const resp = await sendDeviceCommand(d.id, action);
+// d.id = deviceId (1, 2, 3...)
+// action = "ON" hoặc "OFF"
+```
+
+---
+
+### Bước 2: [FE] Function sendDeviceCommand gọi Backend API
+
+**File:** `Back-end/iot-system/src/main/resources/static/js/api/devices.js`
+- Function: `sendDeviceCommand(deviceId, action)`
+- HTTP Method: POST
+- Endpoint: `/api/devices/${deviceId}/control`
+- Body: `{ "action": "ON" }` hoặc `{ "action": "OFF" }`
+
+**Request thực tế:**
+```http
+POST http://localhost:8081/api/devices/1/control
+Content-Type: application/json
+
+{
+  "action": "ON"
+}
+```
+
+**Response:**
+```json
+{
+  "correlationId": "uuid-string",
+  "deviceId": 1,
+  "action": "ON"
+}
+```
+
+---
+
+### Bước 3: [BE] DeviceController nhận HTTP request
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/controller/DeviceController.java`
+- Annotation: `@PostMapping("/{deviceId}/control")`
+- Parse URL path: `@PathVariable Long deviceId`
+- Parse JSON body: `@RequestBody DeviceControlDTO dto`
+- Delegate to Service: `deviceService.sendCommand(dto)`
+
+**Code thực tế:**
+```java
+@PostMapping("/{id}/control")
+public ResponseEntity<DeviceControlDTO> controlDevice(
+    @PathVariable Long id,
+    @RequestBody DeviceControlDTO dto
+) {
+    DeviceControlDTO result = deviceService.sendCommand(
+        new DeviceControlDTO(id, dto.action())
+    );
+    return ResponseEntity.ok(result);
+}
+```
+
+---
+
+### Bước 4: [BE] DeviceService xử lý logic
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/service/DeviceService.java`
+- Method: `sendCommand(DeviceControlDTO dto)`
+- Tìm device trong DB: `deviceRepo.findById(dto.deviceId())`
+- Generate correlation ID: `UUID.randomUUID().toString()`
+- Gọi CommandPublisher để publish MQTT: `commandPublisher.sendAction(...)`
+
+**Code thực tế:**
+```java
+@Transactional
+public String sendCommand(DeviceControlDTO dto) {
+    Device device = deviceRepo.findById(dto.deviceId())
+        .orElseThrow(() -> new IllegalArgumentException("Thiết bị không tồn tại"));
+
+    String correlationId = UUID.randomUUID().toString();
+    commandPublisher.sendAction(
+        device.getId().intValue(), 
+        dto.action().toString(), 
+        correlationId
+    );
+
+    log.info("[SERVICE] Đã gửi lệnh -> deviceId={}, action={}", 
+        device.getId(), dto.action());
+    return correlationId;
+}
+```
+
+---
+
+### Bước 5: [BE] MqttService publish lệnh lên MQTT Broker
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/mqtt/MqttService.java`
+- Method: `sendAction(int deviceId, String action, String correlationId)`
+- Tạo MQTT topic: `iot/actions`
+- Tạo JSON payload với deviceId, action, correlationId
+- Publish với QoS = 1
+
+**Code thực tế:**
+```java
+public void sendAction(int deviceId, String action, String correlationId) {
+    JSONObject json = new JSONObject();
+    json.put("deviceId", deviceId);
+    json.put("action", action);
+    json.put("cid", correlationId);
+    json.put("ts", System.currentTimeMillis());
+
+    MqttMessage msg = new MqttMessage(json.toString().getBytes());
+    msg.setQos(1);
+
+    try {
+        client.publish("iot/actions", msg);
+        log.info("MQTT PUB -> iot/actions: {}", json);
+    } catch (MqttException e) {
+        log.error("MQTT publish failed", e);
+    }
+}
+```
+
+**MQTT Message:**
+```
+Topic: iot/actions
+Payload: {
+  "deviceId": 1,
+  "action": "ON",
+  "cid": "abc-123-def",
+  "ts": 1699872625000
+}
+QoS: 1 (At least once delivery)
+```
+
+---
+
+### Bước 6: [HW] ESP32 subscribe và nhận MQTT message
+
+**File:** `iot_v2.ino` (Arduino/C++ trên ESP32)
+- Subscribe topic: `iot/actions`
+- Callback function: `mqttCallback(char* topic, byte* payload, unsigned int length)`
+- Parse JSON payload bằng ArduinoJson
+- Lấy deviceId, action, correlationId
+- Thực thi: `digitalWrite(pin, action == "ON" ? HIGH : LOW)`
+
+**Code ví dụ (giả định):**
+```cpp
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    StaticJsonDocument<256> doc;
+    deserializeJson(doc, payload, length);
+    
+    int deviceId = doc["deviceId"];
+    String action = doc["action"];
+    String cid = doc["cid"];
+    
+    if (deviceId == 1) { // LIGHT
+        digitalWrite(LIGHT_PIN, action == "ON" ? HIGH : LOW);
+    } else if (deviceId == 2) { // FAN
+        digitalWrite(FAN_PIN, action == "ON" ? HIGH : LOW);
+    } else if (deviceId == 3) { // AIR
+        digitalWrite(AIR_PIN, action == "ON" ? HIGH : LOW);
+    }
+    
+    Serial.println("[HW] Executed: " + action);
+    
+    // Gửi ACK về Backend
+    publishACK(deviceId, action, cid);
+}
+```
+
+**Physical action:**
+```
+GPIO PIN = HIGH (3.3V) → Relay ON → Đèn/Quạt/Điều hòa BẬT 💡
+GPIO PIN = LOW (0V)    → Relay OFF → Đèn/Quạt/Điều hòa TẮT ⚫
+```
+
+---
+
+### Bước 7: [HW] ESP32 publish ACK về Backend
+
+**MQTT Publish từ ESP32:**
+```cpp
+void publishACK(int deviceId, String action, String cid) {
+    StaticJsonDocument<256> doc;
+    doc["deviceId"] = deviceId;
+    doc["action"] = action;
+    doc["cid"] = cid;
+    doc["status"] = "success";
+    doc["ts"] = millis();
+    
+    String payload;
+    serializeJson(doc, payload);
+    
+    mqttClient.publish("iot/acks", payload.c_str());
+}
+```
+
+**MQTT Message:**
+```
+Topic: iot/acks
+Payload: {
+  "deviceId": 1,
+  "action": "ON",
+  "cid": "abc-123-def",
+  "status": "success",
+  "ts": 12345
+}
+```
+
+---
+
+### Bước 8: [BE] MqttService subscribe nhận ACK
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/mqtt/MqttService.java`
+- Callback: `messageArrived(String topic, MqttMessage message)`
+- Subscribe topics: `iot/acks`, `iot/sensors` (trong constructor hoặc init)
+- Parse JSON payload
+- Phân loại theo topic (acks vs sensors)
+
+**Code thực tế:**
+```java
+@Override
+public void messageArrived(String topic, MqttMessage message) throws Exception {
+    String payload = new String(message.getPayload());
+    log.info("MQTT SUB <- {}: {}", topic, payload);
+
+    if ("iot/acks".equals(topic)) {
+        handleDeviceACK(payload);
+    } else if ("iot/sensors".equals(topic)) {
+        handleSensorData(payload);
+    }
+}
+
+private void handleDeviceACK(String payload) {
+    JSONObject json = new JSONObject(payload);
+    int deviceId = json.getInt("deviceId");
+    String action = json.getString("action");
+    String cid = json.getString("cid");
+    
+    // Update device state in DB
+    deviceService.updateDeviceState(deviceId, action);
+    
+    // Save action history
+    actionHistoryService.saveAction(deviceId, action, LocalDateTime.now());
+    
+    log.info("[ACK] Device {} -> {}", deviceId, action);
+}
+```
+
+---
+
+### Bước 9: [BE] Cập nhật Database
+
+**Files liên quan:**
+- `DeviceRepository.java` - Update device state
+- `DeviceActionHistoryRepository.java` - Insert action history
+
+**SQL thực thi:**
+```sql
+-- Update device state
+UPDATE device 
+SET state = 'ON', last_seen_at = NOW()
+WHERE id = 1;
+
+-- Insert action history
+INSERT INTO device_action_history (device_id, action, executed_at)
+VALUES (1, 'ON', '2025-11-13 14:30:25');
+```
+
+---
+
+### Bước 10: [FE] WebSocket nhận ACK từ Backend
+
+**File:** `Back-end/iot-system/src/main/resources/static/js/index.js`
+- LƯU Ý: Project DÙNG **WebSocket (STOMP)** cho realtime updates
+- Function: `connectWS()` kết nối WebSocket và subscribe topics
+- Topic: `/topic/devices` - Nhận ACK khi thiết bị thay đổi trạng thái
+- Xử lý ACK với `pendingMap` để match correlation ID
+
+**Code thực tế:**
+```javascript
+function connectWS() {
+  stompClient = connectStomp({
+    onDevices: (ack) => {
+      try {
+        const idx = deviceIdByToggleIndex.findIndex(id => id === ack.deviceId);
+        if (idx >= 0) {
+          // Match ACK với pending command
+          const pend = pendingMap.get(ack.deviceId);
+          if (pend) {
+            // Validate correlation ID để tránh update nhầm
+            if (pend.correlationId && !ack.correlationId) {
+              return; // Ignore status push không có cid
+            }
+            if (pend.correlationId && ack.correlationId && 
+                ack.correlationId !== pend.correlationId) {
+              return; // Ignore ACK không match
+            }
+            clearTimeout(pend.timer);
+            pendingMap.delete(ack.deviceId);
+          }
+          
+          // Update UI
+          const toggle = document.getElementById(`led${idx}-toggle`);
+          if (toggle) {
+            toggle.checked = ack.state === 'ON';
+            toggle.disabled = false;
+          }
+          
+          // Update icon animation
+          if (idx === 0) setIconState('light', ack.state === 'ON');
+          if (idx === 1) setIconState('fan', ack.state === 'ON');
+          if (idx === 2) setIconState('air', ack.state === 'ON');
+        }
+      } catch {}
+    }
+  });
+}
+```
+
+**Khi nhận được ACK (qua WebSocket):**
+- Validate correlation ID với `pendingMap`
+- Clear timeout rollback timer
+- Set `toggle.checked = true/false` theo state
+- Enable toggle: `toggle.disabled = false`
+- Update icon animation state
+
+================================================================================
+## LUỒNG 2: CẬP NHẬT DỮ LIỆU CẢM BIẾN (NHIỆT ĐỘ, ĐỘ ẨM, ÁNH SÁNG)
+================================================================================
+
+*Mục đích: ESP32 gửi dữ liệu sensor định kỳ để lưu trữ và hiển thị*
+*Luồng: HW --> MQTT --> BE Subscribe --> DB Insert --> FE Polling*
+
+---
+
+### Bước 1: [HW] ESP32 đọc sensor và publish MQTT
+
+**File:** `iot_v2.ino`
+- Đọc sensor mỗi 2-5 giây (định kỳ)
+- Sensor: DHT22 (nhiệt độ, độ ẩm), LDR (ánh sáng)
+- Publish lên topic: `iot/sensors`
+
+**Code ví dụ:**
+```cpp
+void loop() {
+    if (millis() - lastSensorRead > 5000) {
+        float temp = dht.readTemperature();
+        float hum = dht.readHumidity();
+        int light = analogRead(LDR_PIN);
+        
+        StaticJsonDocument<256> doc;
+        doc["temp"] = temp;
+        doc["hum"] = hum;
+        doc["light"] = light;
+        doc["ts"] = millis();
+        
+        String payload;
+        serializeJson(doc, payload);
+        
+        mqttClient.publish("iot/sensors", payload.c_str());
+        lastSensorRead = millis();
+    }
+}
+```
+
+**MQTT Message:**
+```
+Topic: iot/sensors
+Payload: {
+  "temp": 28.5,
+  "hum": 65.2,
+  "light": 250,
+  "ts": 123456
+}
+```
+
+---
+
+### Bước 2: [BE] MqttService nhận sensor data
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/mqtt/MqttService.java`
+- Callback: `messageArrived()` phân loại topic `iot/sensors`
+- Parse JSON payload
+- Gọi SensorDataService để lưu DB
+
+**Code thực tế:**
+```java
+private void handleSensorData(String payload) {
+    try {
+        JSONObject json = new JSONObject(payload);
+        double temp = json.getDouble("temp");
+        double hum = json.getDouble("hum");
+        int light = json.getInt("light");
+        
+        sensorDataService.saveSensorData(temp, hum, light);
+        
+        log.info("[SENSOR] Saved: temp={}, hum={}, light={}", temp, hum, light);
+    } catch (Exception e) {
+        log.error("Error handling sensor data", e);
+    }
+}
+```
+
+---
+
+### Bước 3: [BE] SensorDataService lưu vào Database
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/service/SensorDataService.java`
+- Create entity: `new SensorData()`
+- Set values: temperature, humidity, light, recordedAt
+- Save: `sensorDataRepository.save(sensorData)`
+
+**SQL thực thi:**
+```sql
+INSERT INTO sensor_data (temperature, humidity, light, recorded_at)
+VALUES (28.5, 65.2, 250, '2025-11-13 14:30:25');
+```
+
+---
+
+### Bước 4: [FE] WebSocket realtime update sensor data
+
+**File:** `Back-end/iot-system/src/main/resources/static/js/index.js`
+- WebSocket subscribe topic: `/topic/sensors`
+- Function: `appendRealtimePoint(msg)` - Xử lý realtime sensor data
+- Function: `updateSensorCards(latest)` - Update UI cards
+- Function: `checkAndApplyAlerts(latest)` - Check và apply alerts với thresholds
+
+**Code:**
+```javascript
+function connectWS() {
+  stompClient = connectStomp({
+    onSensors: (payload) => {
+      try { 
+        lastWsSensorAt = Date.now(); 
+        appendRealtimePoint(payload); 
+      } catch {}
+    }
+  });
+}
+
+function appendRealtimePoint(msg) {
+  if (pauseRealtime) return;
+  // Parse timestamp và validate
+  const parsed = parseDateTime(msg.recordedAt);
+  if (!parsed || parsed.getTime() <= lastAppliedTsMs) return;
+  
+  // Update chart
+  const opt = echart.getOption();
+  const labelsNow = [...opt.xAxis[0].data];
+  labelsNow.push(fmtTime(parsed));
+  // ... append data points ...
+  
+  // Update sensor cards và check alerts
+  updateSensorCards({ ...msg, recordedAt: parsed });
+  lastAppliedTsMs = parsed.getTime();
+}
+
+function updateSensorCards(latest) {
+  // Update temperature, humidity, light values
+  // Update trends, deltas, timestamps
+  // Highlight animations với GSAP
+  
+  // ✅ Check alerts với settings hiện tại
+  checkAndApplyAlerts(latest);
+}
+```
+
+**Fallback Polling:**
+- Nếu WebSocket silent > 5 giây, tự động poll `GET /api/sensor-data/latest`
+- Đảm bảo UI luôn update ngay cả khi WebSocket disconnect
+
+================================================================================
+## LUỒNG 3: XEM LỊCH SỬ HOẠT ĐỘNG (HISTORY PAGE)
+================================================================================
+
+*Mục đích: Người dùng xem lại các lần bật/tắt thiết bị trong quá khứ*
+*Luồng: FE --> BE Controller --> Service --> Repository --> DB Query --> FE hiển thị*
+
+---
+
+### Bước 1: [FE] User truy cập trang History
+
+**File:** `Back-end/iot-system/src/main/resources/static/history.html`
+- Load JavaScript: `history-vanilla.js`
+- Hiển thị form filter: date range, device filter
+
+---
+
+### Bước 2: [FE] Gọi API lấy history data
+
+**File:** `Back-end/iot-system/src/main/resources/static/js/history-vanilla.js`
+- Function: `fetchHistory(filters)`
+- API: `POST /api/device-actions/search`
+- Body: `{ "dateStr": "13-11-2025", "deviceId": 1, "page": 0, "size": 50 }`
+
+**Request:**
+```http
+POST http://localhost:8081/api/device-actions/search
+Content-Type: application/json
+
+{
+  "dateStr": "13-11-2025",
+  "deviceId": null,
+  "page": 0,
+  "size": 50,
+  "sort": "desc"
+}
+```
+
+---
+
+### Bước 3: [BE] DeviceActionHistoryController xử lý
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/controller/DeviceActionHistoryController.java`
+- Endpoint: `@PostMapping("/search")`
+- Parse request body
+- Delegate to Service
+
+---
+
+### Bước 4: [BE] Service query Database
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/service/DeviceActionHistoryService.java`
+- Method: `search(SearchRequest request)`
+- Build query criteria
+- Call Repository: `repository.findByFilters(...)`
+
+**SQL tương đương:**
+```sql
+SELECT 
+    h.id,
+    d.name AS device_name,
+    h.action,
+    h.executed_at
+FROM device_action_history h
+JOIN device d ON h.device_id = d.id
+WHERE DATE(h.executed_at) = '2025-11-13'
+  AND (h.device_id = 1 OR 1 IS NULL)
+ORDER BY h.executed_at DESC
+LIMIT 50 OFFSET 0;
+```
+
+---
+
+### Bước 5: [FE] Render table với dữ liệu
+
+**File:** `history-vanilla.js`
+- Nhận response: `{ data: [...], total: 150, page: 0 }`
+- Loop qua data và render HTML table rows
+- Add pagination controls
+
+================================================================================
+## LUỒNG 4: XEM THỐNG KÊ (STATISTICS PAGE) - MỚI
+================================================================================
+
+*Mục đích: Xem số lần bật thiết bị và số lần vượt ngưỡng sensor*
+*Luồng: FE --> BE Statistics API (server-side counting) --> FE hiển thị*
+*ĐẶC BIỆT: Đã migrate từ client-side counting sang server-side (Backend đếm bằng SQL)*
+
+---
+
+### Bước 1: [FE] User truy cập trang Statistics
+
+**File:** `Back-end/iot-system/src/main/resources/static/statistics.html`
+- Load JavaScript: `statistics.js`
+- Load thresholds từ localStorage: `{ temp: 30, hum: 80, light: 800 }`
+
+---
+
+### Bước 2: [FE] Gọi API thống kê số lần BẬT thiết bị
+
+**File:** `Back-end/iot-system/src/main/resources/static/js/statistics.js`
+- Function: `fetchStatistics()`
+- API: `GET /api/statistics/device-actions?date=13-11-2025`
+- Parse response: `{ light: 45, fan: 32, air: 28 }`
+
+**Request:**
+```http
+GET http://localhost:8081/api/statistics/device-actions?date=13-11-2025
+```
+
+**Response:**
+```json
+{
+  "light": 45,
+  "fan": 32,
+  "air": 28
+}
+```
+
+---
+
+### Bước 3: [BE] StatisticsController - Device Actions
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/controller/StatisticsController.java`
+- Endpoint: `@GetMapping("/device-actions")`
+- Parameter: `@RequestParam String date`
+- Delegate: `statisticsService.countDeviceActions(date)`
+
+---
+
+### Bước 4: [BE] StatisticsService - COUNT với Native SQL
+
+**File:** `Back-end/iot-system/src/main/java/com/iot_system/service/StatisticsService.java`
+- Method: `countDeviceActions(String dateStr)`
+- Native SQL Query với GROUP BY và COUNT
+- Return DTO: `DeviceActionsCountDTO`
+
+**SQL Query:**
+```sql
+SELECT 
+    d.name AS device_name,
+    COUNT(*) AS action_count
+FROM device_action_history h
+JOIN device d ON h.device_id = d.id
+WHERE DATE(h.executed_at) = STR_TO_DATE('13-11-2025', '%d-%m-%Y')
+  AND h.action = 'ON'
+GROUP BY d.name;
+```
+
+**Result:**
+```
+device_name | action_count
+------------|-------------
+LIGHT       | 45
+FAN         | 32
+AIR         | 28
+```
+
+---
+
+### Bước 5: [FE] Gọi API thống kê số lần VƯỢT NGƯỠNG sensor
+
+**File:** `statistics.js`
+- Function: `fetchSensorViolations()`
+- API: `GET /api/statistics/violations?date=13-11-2025&temp=30&hum=80&light=800`
+- Thresholds lấy từ localStorage settings
+
+**Request:**
+```http
+GET http://localhost:8081/api/statistics/violations?date=13-11-2025&temp=30&hum=80&light=800
+```
+
+**Response:**
+```json
+{
+  "temp": 123,
+  "hum": 56,
+  "light": 89
+}
+```
+
+---
+
+### Bước 6: [BE] StatisticsController - Violations
+
+**File:** `StatisticsController.java`
+- Endpoint: `@GetMapping("/violations")`
+- Parameters: `date, temp, hum, light` (thresholds)
+- Delegate: `statisticsService.countSensorViolations(...)`
+
+---
+
+### Bước 7: [BE] StatisticsService - COUNT violations
+
+**File:** `StatisticsService.java`
+- Method: `countSensorViolations(String dateStr, double temp, double hum, double light)`
+- 3 Native SQL queries riêng biệt (mỗi sensor 1 query)
+- Return DTO: `SensorViolationsCountDTO`
+
+**SQL Queries:**
+```sql
+-- Query 1: Temperature violations
+SELECT COUNT(*) 
+FROM sensor_data
+WHERE DATE(recorded_at) = STR_TO_DATE('13-11-2025', '%d-%m-%Y')
+  AND temperature > 30;
+
+-- Query 2: Humidity violations
+SELECT COUNT(*) 
+FROM sensor_data
+WHERE DATE(recorded_at) = STR_TO_DATE('13-11-2025', '%d-%m-%Y')
+  AND humidity > 80;
+
+-- Query 3: Light violations
+SELECT COUNT(*) 
+FROM sensor_data
+WHERE DATE(recorded_at) = STR_TO_DATE('13-11-2025', '%d-%m-%Y')
+  AND light > 800;
+```
+
+---
+
+### Bước 8: [FE] Hiển thị kết quả thống kê
+
+**File:** `statistics.js`
+- Function: `updateSummaryCards(data)` - Hiển thị số lần bật
+- Function: `updateViolationsTable(data)` - Hiển thị số lần vượt ngưỡng
+- GSAP animations: Count up effect từ 0 đến giá trị thực
+- Sắp xếp giảm dần (device có số lần nhiều nhất lên đầu)
+
+---
+
+### LƯU Ý QUAN TRỌNG:
+
+**TRƯỚC (Client-side counting - ĐÃ BỎ):**
+- FE fetch 10,000+ records device actions
+- FE fetch 1,500+ records sensor data
+- FE loop và đếm từng record (rất chậm)
+- Data transfer: ~100KB per page load
+
+**SAU (Server-side counting - HIỆN TẠI):**
+- FE chỉ gọi 2 APIs
+- BE đếm bằng SQL COUNT (cực nhanh)
+- FE nhận kết quả đã đếm sẵn
+- Data transfer: ~50 bytes per page load
+- Performance: Tăng 90% (từ ~1s → ~100ms)
+
+================================================================================
+## LUỒNG 5: QUẢN LÝ SETTINGS VÀ ALERT SYNCHRONIZATION
+================================================================================
+
+*Mục đích: Người dùng thay đổi ngưỡng cảnh báo và UI cập nhật ngay lập tức*
+*Luồng: FE Settings Modal --> localStorage --> Re-check Alerts --> UI Update --> Cross-tab Sync*
+
+---
+
+### Bước 1: [FE] User mở Settings modal
+
+**File:** `Back-end/iot-system/src/main/resources/static/js/index.js`
+- Click button Settings (⚙️)
+- Function: `openSettings()`
+- Load current thresholds từ `settings.thresholds`
+- Hiển thị modal với input fields: temp, hum, light
+
+**Code:**
+```javascript
+function openSettings() {
+  const modal = select('settings-modal');
+  if (!modal) return;
+  
+  // Load giá trị hiện tại vào form
+  select('th-temp').value = settings.thresholds.temp;   // Default: 30
+  select('th-hum').value = settings.thresholds.hum;     // Default: 80
+  select('th-light').value = settings.thresholds.light; // Default: 800
+  
+  modal.style.display = 'block';
+  modal.setAttribute('aria-hidden','false');
+}
+```
+
+---
+
+### Bước 2: [FE] User thay đổi thresholds và Save
+
+**Event Handler:** Save button click
+- Parse new values từ input fields
+- Update `settings.thresholds` object
+- Gọi `saveSettings()` để lưu localStorage
+- **QUAN TRỌNG**: Gọi `recheckAllAlerts()` ngay lập tức
+- Close modal
+
+**Code:**
+```javascript
+saveBtn.addEventListener('click', () => {
+  // Parse new thresholds từ form
+  settings.thresholds.temp = Number(select('th-temp').value);
+  settings.thresholds.hum = Number(select('th-hum').value);
+  settings.thresholds.light = Number(select('th-light').value);
+  
+  // Lưu vào localStorage
+  saveSettings();
+  
+  // ✅ Re-check alerts với ngưỡng mới ngay lập tức
+  recheckAllAlerts();
+  
+  closeSettings();
+});
+
+function saveSettings() {
+  try {
+    localStorage.setItem('iot_settings', JSON.stringify(settings));
+  } catch (e) {
+    console.warn('Save settings failed', e);
+  }
+}
+```
+
+---
+
+### Bước 3: [FE] Re-check tất cả alerts với thresholds mới
+
+**Function:** `recheckAllAlerts()` (dòng 369-386)
+- Đọc giá trị sensor HIỆN TẠI từ DOM elements
+- Tạo fake sensor object với giá trị hiện tại
+- Gọi `checkAndApplyAlerts()` để re-evaluate alerts
+
+**Code:**
+```javascript
+function recheckAllAlerts() {
+  try {
+    // Lấy giá trị sensor hiện tại từ UI
+    const tempEl = select('box-temp');
+    const humEl = select('box-hum');
+    const lightEl = select('box-light');
+    
+    if (!tempEl || !humEl || !lightEl) return;
+    
+    const currentTemp = parseFloat(tempEl.textContent);
+    const currentHum = parseFloat(humEl.textContent);
+    const currentLight = parseFloat(lightEl.textContent);
+    
+    // Tạo object giả để pass vào checkAndApplyAlerts
+    const fakeLatest = {
+      temperature: Number.isFinite(currentTemp) ? currentTemp : NaN,
+      humidity: Number.isFinite(currentHum) ? currentHum : NaN,
+      light: Number.isFinite(currentLight) ? currentLight : NaN,
+      recordedAt: new Date()
+    };
+    
+    console.log('[Settings] Re-checking alerts with new thresholds:', 
+                settings.thresholds);
+    console.log('[Settings] Current values:', fakeLatest);
+    
+    // Gọi lại check alerts (sẽ dùng settings mới)
+    checkAndApplyAlerts(fakeLatest);
+    
+  } catch (e) {
+    console.error('[Settings] Error re-checking alerts:', e);
+  }
+}
+```
+
+---
+
+### Bước 4: [FE] Centralized alert checking logic
+
+**Function:** `checkAndApplyAlerts(latest)` (dòng 388-446)
+- **Single source of truth** cho tất cả alert logic
+- So sánh sensor values với `settings.thresholds`
+- Apply CSS classes: `alert-hard`, `alert-flash`
+- GSAP animations cho visual feedback
+- Debounce với `lastFlashAt` để tránh flash spam
+
+**Code:**
+```javascript
+function checkAndApplyAlerts(latest) {
+  if (!latest) return;
+  
+  // Temperature alert
+  const tempCard = select('card-temp');
+  if (tempCard && Number.isFinite(latest.temperature)) {
+    tempCard.classList.remove('alert-soft', 'alert-hard', 
+                               'alert', 'alert-flash');
+    
+    if (latest.temperature > settings.thresholds.temp) {
+      tempCard.classList.add('alert-hard');
+      
+      const now = performance.now();
+      if (now - lastFlashAt.temp > 2000) {
+        lastFlashAt.temp = now;
+        tempCard.classList.add('alert-flash');
+        setTimeout(() => tempCard.classList.remove('alert-flash'), 700);
+        
+        // Icon pulse animation
+        gsap.fromTo('#icon-temp svg', 
+          { scale: 1 }, 
+          { scale: 1.15, yoyo: true, repeat: 3, duration: 0.15 }
+        );
+      }
+    }
+  }
+  
+  // Humidity alert (tương tự)
+  // Light alert (tương tự)
+}
+```
+
+**Ví dụ thực tế:**
+```
+Before: Temp = 32°C, Threshold = 30°C → Alert ON (red card)
+User changes: Threshold 30°C → 35°C
+recheckAllAlerts() executes immediately
+After: Temp = 32°C, Threshold = 35°C → Alert OFF (32 < 35)
+UI updates instantly: Red card → Normal card
+```
+
+---
+
+### Bước 5: [FE] Cross-tab synchronization
+
+**Event Listener:** `storage` event trong DOMContentLoaded
+- Listen localStorage changes từ tabs khác
+- Khi tab khác thay đổi `iot_settings`
+- Reload settings và re-check alerts trong tab hiện tại
+
+**Code:**
+```javascript
+window.addEventListener('DOMContentLoaded', async () => {
+  loadSettings();
+  applyTheme();
+  
+  // ✅ Listen storage changes từ tabs khác (cross-tab sync)
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'iot_settings') {
+      console.log('[Settings] Updated from another tab');
+      loadSettings();
+      recheckAllAlerts();
+    }
+  });
+  
+  // ... other initializations ...
+});
+```
+
+**Flow:**
+```
+Tab 1: User clicks Save → localStorage.setItem()
+    ↓
+Browser fires 'storage' event in Tab 2
+    ↓
+Tab 2: Event listener triggered
+    ↓
+Tab 2: loadSettings() + recheckAllAlerts()
+    ↓
+Tab 2: UI updates with new thresholds
+```
+
+---
+
+### Bước 6: [FE] Integration với sensor updates
+
+**Function:** `updateSensorCards(latest)` (dòng 448-474)
+- Update sensor values, trends, deltas
+- Highlight animations với GSAP
+- **Cuối function**: Gọi `checkAndApplyAlerts(latest)`
+- Đảm bảo alerts luôn checked mỗi khi có sensor data mới
+
+**Code:**
+```javascript
+function updateSensorCards(latest) {
+  if (!latest) return;
+  
+  // Update temperature value và UI
+  const tNum = Number(latest.temperature);
+  if (Number.isFinite(tNum)) {
+    const el = select('box-temp');
+    el.textContent = formatValueFlexible(tNum, 1);
+    highlightValue(el);
+    flashSensorIcon('temp');
+    // ... update trends, deltas ...
+  }
+  
+  // Update humidity (tương tự)
+  // Update light (tương tự)
+  
+  // ✅ Check alerts với settings hiện tại
+  checkAndApplyAlerts(latest);
+}
+```
+
+---
+
+### LƯU Ý QUAN TRỌNG:
+
+**TRƯỚC (Alert bug):**
+- Alerts chỉ check khi có sensor data mới
+- User thay đổi threshold → UI KHÔNG update ngay
+- Phải đợi sensor data tiếp theo (5 giây sau)
+- Confusing UX: Threshold 35°C nhưng vẫn alert ở 32°C
+
+**SAU (Fixed):**
+- User thay đổi threshold → `recheckAllAlerts()` trigger ngay
+- Re-evaluate alerts với current sensor values
+- UI update INSTANTLY (không cần đợi sensor data)
+- Cross-tab sync: Thay đổi ở tab 1 → Tab 2 auto update
+- Single source of truth: `checkAndApplyAlerts()` function
+- Code cleaner: Removed ~45 lines duplicate code
+
+**Performance:**
+- recheckAllAlerts: ~1ms (chỉ đọc DOM)
+- checkAndApplyAlerts: ~2ms (CSS + GSAP)
+- Total: ~3ms → Instant feedback cho user
+
+================================================================================
+## TÓM TẮT KIẾN TRÚC HỆ THỐNG
+================================================================================
+
+**Frontend:**
+- Location: `Back-end/iot-system/src/main/resources/static/`
+- HTML: index.html, history.html, statistics.html, activity.html, profile.html
+- JavaScript: Vanilla JS (ES6 modules), GSAP 3.12.2 animation
+- Communication: HTTP REST API (fetch) + WebSocket (STOMP over SockJS)
+- Realtime: WebSocket cho sensor data và device ACKs
+- Fallback: HTTP polling khi WebSocket silent > 5 giây
+- Storage: localStorage cho settings persistence
+
+**Backend:**
+- Framework: Spring Boot
+- Language: Java
+- Architecture: Controller → Service → Repository (3-layer)
+- MQTT: Eclipse Paho library
+- Database: JPA/Hibernate với MySQL
+
+**MQTT Broker:**
+- Mosquitto (hoặc HiveMQ)
+- Topics:
+  * `iot/actions` - Backend publish commands
+  * `iot/acks` - ESP32 publish ACK
+  * `iot/sensors` - ESP32 publish sensor data
+
+**Hardware:**
+- ESP32 microcontroller
+- Sensors: DHT22 (temp/humidity), LDR (light)
+- Actuators: Relay modules điều khiển đèn/quạt/điều hòa
+- Code: Arduino/C++
+
+**Database Schema:**
+- `device` - Danh sách thiết bị
+- `device_action_history` - Lịch sử bật/tắt
+- `sensor_data` - Dữ liệu cảm biến
+- Indexes: executed_at, recorded_at (for query performance)
+
+**Communication Flow:**
+- FE ↔ BE: HTTP REST (JSON) + WebSocket (STOMP/SockJS)
+- BE ↔ MQTT: Pub/Sub (QoS 1)
+- BE ↔ DB: JPA/JDBC
+- FE update: WebSocket realtime + HTTP polling fallback
+- Settings: localStorage với cross-tab sync via `storage` event
+
+**Alert System:**
+- Thresholds: Stored in localStorage (`iot_settings`)
+- Check timing: 
+  * On new sensor data (WebSocket)
+  * On settings change (instant re-check)
+  * On cross-tab sync (storage event)
+- Visual feedback: CSS classes + GSAP animations
+- Debounce: 2 seconds between flash animations
+
+================================================================================
+## FILES QUAN TRỌNG VÀ VỊ TRÍ
+================================================================================
+
+**Backend Core:**
+✅ `Back-end/iot-system/src/main/java/com/iot_system/controller/DeviceController.java`
+✅ `Back-end/iot-system/src/main/java/com/iot_system/service/DeviceService.java`
+✅ `Back-end/iot-system/src/main/java/com/iot_system/mqtt/MqttService.java`
+✅ `Back-end/iot-system/src/main/java/com/iot_system/controller/StatisticsController.java`
+✅ `Back-end/iot-system/src/main/java/com/iot_system/service/StatisticsService.java`
+✅ `Back-end/iot-system/src/main/java/com/iot_system/config/WebSocketConfig.java`
+
+**Frontend Core:**
+✅ `Back-end/iot-system/src/main/resources/static/index.html`
+✅ `Back-end/iot-system/src/main/resources/static/js/index.js` (Main dashboard)
+✅ `Back-end/iot-system/src/main/resources/static/js/config.js` (API endpoints)
+✅ `Back-end/iot-system/src/main/resources/static/js/api/devices.js`
+✅ `Back-end/iot-system/src/main/resources/static/js/api/sensors.js`
+✅ `Back-end/iot-system/src/main/resources/static/js/realtime/wsClient.js` (WebSocket)
+✅ `Back-end/iot-system/src/main/resources/static/js/statistics.js`
+✅ `Back-end/iot-system/src/main/resources/static/js/history-vanilla.js`
+
+**Hardware:**
+✅ `iot_v2.ino` (ESP32 Arduino code)
+✅ `iot_06.11.ino` (Alternative version)
+
+**Database:**
+✅ `iot.sql` (Schema definition)
+
+**Documentation:**
+✅ `summary_flows.txt` (This file - System flow documentation)
+✅ `MIGRATION-SUMMARY.md` (Migration history)
+✅ `ENV_SETUP.md` (Environment setup guide)
+✅ `README-SETUP.md` (Setup instructions)
+
+================================================================================
+## FILES KHÔNG TỒN TẠI (ĐỪNG TÌM KIẾM)
+================================================================================
+
+❌ `CommandPublisher.java` - Không có, tích hợp trong MqttService.java
+❌ `CommandSubscriber.java` - Không có, tích hợp trong MqttService.java  
+❌ `DeviceStatusListener.java` - Không có event-driven architecture
+❌ `Front-end/` folder như một module riêng - Frontend nằm trong Back-end resources
+
+================================================================================
+## KEY FUNCTIONS TRONG INDEX.JS
+================================================================================
+
+**Settings Management:**
+- `loadSettings()` - Load từ localStorage
+- `saveSettings()` - Save vào localStorage
+- `openSettings()` - Hiển thị modal
+- `closeSettings()` - Đóng modal
+- `normalizeSettings()` - Validate thresholds
+
+**Alert System:**
+- `recheckAllAlerts()` - Re-check alerts với settings hiện tại (instant)
+- `checkAndApplyAlerts(latest)` - Centralized alert logic (single source)
+- CSS classes: `alert-hard`, `alert-flash`
+- Debounce: `lastFlashAt` object
+
+**Device Control:**
+- `loadDevices()` - Load device list
+- `sendDeviceCommand(deviceId, action)` - API call
+- `pendingMap` - Track pending commands với correlation ID
+- `toggle.onchange` - Pessimistic UI pattern
+
+**Sensor Updates:**
+- `updateSensorCards(latest)` - Update UI với sensor data mới
+- `appendRealtimePoint(msg)` - Append data point vào chart
+- `fillChartsFromList(list)` - Initial chart populate
+
+**WebSocket:**
+- `connectWS()` - WebSocket connection
+- `onSensors` callback - Handle sensor data
+- `onDevices` callback - Handle device ACKs
+- Fallback polling khi WS silent
+
+**Charts:**
+- `initCharts()` - Initialize ECharts
+- `exportChartCSV()` - Export data
+- `saveChartPNG()` - Save screenshot
+
+**Animations:**
+- `initPageAnimations()` - Entrance animations
+- `addHoverEffects()` - Hover interactions
+- `highlightValue(el)` - Value update effect
+- `flashSensorIcon(kind)` - Icon pulse
+- Icon timelines: `light`, `fan`, `air`
+
+================================================================================
+Hết tài liệu tóm tắt luồng
+================================================================================

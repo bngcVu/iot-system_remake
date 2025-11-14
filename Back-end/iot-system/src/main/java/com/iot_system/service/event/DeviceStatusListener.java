@@ -67,7 +67,7 @@ public class DeviceStatusListener {
             String correlationId = json.has("correlationId") ? json.get("correlationId").asText() : null;
 
             Device device = deviceRepository.findById((long) deviceId)
-                    .orElseThrow(() -> new RuntimeException("Device not found: " + deviceId));
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy thiết bị: " + deviceId));
             device.setState(DeviceState.valueOf(state));
             deviceRepository.save(device);
 
@@ -129,10 +129,10 @@ public class DeviceStatusListener {
                 DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
                 wsPayload.put("recordedAt", LocalDateTime.now().format(fmt));
                 
-                log.info("[WS] Sending sensor data to /topic/sensors: temp={}, hum={}, light={}", 
+                log.info("[WS] Gửi dữ liệu cảm biến /topic/sensors: temp={}, hum={}, light={}", 
                     temperature, humidity, light);
                 wsTemplate.convertAndSend("/topic/sensors", wsPayload);
-                log.info("[WS] Sensor data sent successfully to /topic/sensors");
+                log.info("[WS] Dữ liệu cảm biến đã được gửi thành công tới /topic/sensors");
 
                 
 
