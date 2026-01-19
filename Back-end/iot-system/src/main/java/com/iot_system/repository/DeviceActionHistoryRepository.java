@@ -17,7 +17,8 @@ public interface DeviceActionHistoryRepository extends JpaRepository<DeviceActio
     @Query("""
            SELECT h FROM DeviceActionHistory h
            JOIN FETCH h.device d
-           WHERE (:deviceName IS NULL OR LOWER(d.name) LIKE LOWER(CONCAT('%', :deviceName, '%')))
+           WHERE (:deviceName IS NULL OR LOWER(d.name) 
+           LIKE LOWER(CONCAT('%', :deviceName, '%')))
              AND (
                    :deviceType IS NULL
                 OR :deviceType = com.iot_system.domain.enums.DeviceType.ALL

@@ -54,7 +54,7 @@ public class SensorDataService {
      *          dd/MM/yyyy, 
      *          ddMMyy
      */
-    public PagedResponse<SensorReadingDTO> search(String dateStr, SensorMetric metric, int page, int size, String sort) {
+public PagedResponse<SensorReadingDTO> search(String dateStr, SensorMetric metric, int page, int size, String sort) {
         LocalDateTime start = null;
         LocalDateTime end = null;
         String searchMessage = "";
@@ -235,7 +235,7 @@ public class SensorDataService {
                         : Sort.by("recordedAt").descending()
         ));
 
-        log.info("Found {} sensor data records, total elements: {}", 
+        log.info("Tìm thấy {} bản ghi trong tổng số {} bản ghi", 
                 sensorPage.getContent().size(), sensorPage.getTotalElements());
 
 

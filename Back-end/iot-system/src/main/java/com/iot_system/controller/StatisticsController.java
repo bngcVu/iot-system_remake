@@ -16,9 +16,8 @@ public class StatisticsController {
     }
 
     /**
-     * Get device action counts (ON actions only) for a specific date
+     * Chỉ hành động BẬT
      * GET /api/statistics/device-actions?date=07-11-2025
-     * Response: { "light": 10, "fan": 5, "air": 3 }
      */
     @GetMapping("/device-actions")
     public DeviceActionsCountDTO getDeviceActionCounts(
@@ -27,9 +26,9 @@ public class StatisticsController {
     }
 
     /**
-     * Get sensor violations count for a specific date and thresholds
+     * Lấy số lần vi phạm của cảm biến cho một ngày và ngưỡng cụ thể
      * GET /api/statistics/violations?date=07-11-2025&temp=30&hum=80&light=800
-     * Response: { "temp": 100, "hum": 50, "light": 200 }
+     * Phản hồi: { "temp": 100, "hum": 50, "light": 200 }
      */
     @GetMapping("/violations")
     public SensorViolationsCountDTO getSensorViolationCounts(
@@ -40,4 +39,6 @@ public class StatisticsController {
         return statisticsService
             .countSensorViolations(dateStr, tempThreshold, humThreshold, lightThreshold);
     }
+
+    // lay
 }

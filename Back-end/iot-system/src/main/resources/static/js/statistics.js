@@ -1,7 +1,7 @@
 // Module hóa cấu hình và API
 import { ENDPOINTS } from './config.js';
 
-// Load settings from localStorage
+// Tải cài đặt từ localStorage
 const settings = {
   thresholds: {
     temp: 30,
@@ -13,28 +13,28 @@ const settings = {
 function loadSettings() {
   try {
     const raw = localStorage.getItem('iot_settings');
-    console.log('[Settings] Loading from localStorage:', raw);
+    console.log('[Cài đặt] Đang tải từ localStorage:', raw);
     if (raw) {
       const incoming = JSON.parse(raw);
       Object.assign(settings, incoming);
       normalizeSettings();
-      console.log('[Settings] Loaded settings:', JSON.stringify(settings));
+      console.log('[Cài đặt] Đã tải cài đặt:', JSON.stringify(settings));
     } else {
       normalizeSettings();
-      console.log('[Settings] Using default settings:', JSON.stringify(settings));
+      console.log('[Cài đặt] Sử dụng cài đặt mặc định:', JSON.stringify(settings));
     }
   } catch (e) {
-    console.error('[Settings] Load failed:', e);
+    console.error('[Cài đặt] Tải thất bại:', e);
   }
 }
 
 function saveSettings() {
   try {
-    console.log('[Settings] Saving to localStorage:', JSON.stringify(settings));
+    console.log('[Cài đặt] Đang lưu vào localStorage:', JSON.stringify(settings));
     localStorage.setItem('iot_settings', JSON.stringify(settings));
-    console.log('[Settings] Saved successfully');
+    console.log('[Cài đặt] Đã lưu thành công');
   } catch (e) {
-    console.warn('[Settings] Save failed:', e);
+    console.warn('[Cài đặt] Lưu thất bại:', e);
   }
 }
 
@@ -51,7 +51,7 @@ function normalizeSettings() {
   };
 }
 
-// State
+// Trạng thái
 let chartInstance = null;
 let statisticsData = {
   temp: 0,
@@ -59,14 +59,14 @@ let statisticsData = {
   light: 0
 };
 
-// Device name mapping
+// Ánh xạ tên thiết bị
 const DEVICE_MAP = {
   'LED0': 'LIGHT',
   'LED1': 'FAN',
   'LED2': 'AIR'
 };
 
-// Utility functions
+// Các hàm tiện ích
 function select(id) {
   return document.getElementById(id);
 }
@@ -83,82 +83,82 @@ function animateNumber(element, from, to, duration = 1000) {
   });
 }
 
-// Format date to dd-MM-yyyy HH:mm:ss
+// Định dạng ngày thành dd-MM-yyyy HH:mm:ss
 function formatDate(date) {
   const pad = (n) => n < 10 ? '0' + n : n;
   return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-// Format time to display
+// Định dạng thời gian để hiển thị
 function formatTimeDisplay(dateString) {
   const date = new Date(dateString);
   const pad = (n) => n < 10 ? '0' + n : n;
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-// Fetch device actions and count on/off events
+// Lấy hành động của thiết bị và đếm số lần bật/tắt
 async function fetchStatistics(timeRange = 'today') {
   try {
-    // Calculate date - always today
+    // Tính toán ngày - luôn là hôm nay
     const now = new Date();
     const pad = (n) => n < 10 ? '0' + n : n;
     const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
     
-    console.log('Fetching device action counts from Backend for:', dateStr);
+    console.log('Đang lấy số lần hoạt động của thiết bị từ Backend cho ngày:', dateStr);
 
-    // Call new Backend API (server-side counting)
+    // Gọi API Backend mới (đếm phía máy chủ)
     const response = await fetch(`${ENDPOINTS.statisticsDeviceActions}?date=${dateStr}`);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch device action statistics');
+      throw new Error('Không thể lấy thống kê hành động của thiết bị');
     }
 
     const counts = await response.json(); // {light: X, fan: Y, air: Z}
-    console.log('Device action counts (ON only):', counts);
+    console.log('Số lần hoạt động của thiết bị (chỉ BẬT):', counts);
 
-    // Return in expected format for UI
+    // Trả về theo định dạng mong muốn cho UI
     return { violations: counts };
   } catch (error) {
-    console.error('Error fetching statistics:', error);
+    console.error('Lỗi khi lấy thống kê:', error);
     return { violations: { light: 0, fan: 0, air: 0 } };
   }
 }
 
-// Fetch sensor data and count threshold violations
+// Lấy dữ liệu cảm biến và đếm số lần vi phạm ngưỡng
 async function fetchSensorViolations() {
   try {
     const now = new Date();
     const pad = (n) => n < 10 ? '0' + n : n;
     const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
     
-    console.log('[Violations] Fetching violation counts from Backend for date:', dateStr);
-    console.log('[Violations] Using thresholds:', JSON.stringify(settings.thresholds));
+    console.log('[Vi phạm] Đang lấy số lần vi phạm từ Backend cho ngày:', dateStr);
+    console.log('[Vi phạm] Sử dụng ngưỡng:', JSON.stringify(settings.thresholds));
 
-    // Call new Backend API (server-side counting with thresholds)
+    // Gọi API Backend mới (đếm phía máy chủ với ngưỡng)
     const url = `${ENDPOINTS.statisticsViolations}?date=${dateStr}&temp=${settings.thresholds.temp}&hum=${settings.thresholds.hum}&light=${settings.thresholds.light}`;
     const response = await fetch(url);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch sensor violation statistics');
+      throw new Error('Không thể lấy thống kê vi phạm cảm biến');
     }
 
     const violations = await response.json(); // {temp: X, hum: Y, light: Z}
     
-    console.log('[Violations] Summary from Backend:');
-    console.log('  - Temperature: ', violations.temp, 'records exceeded', settings.thresholds.temp, '°C');
-    console.log('  - Humidity: ', violations.hum, 'records exceeded', settings.thresholds.hum, '%');
-    console.log('  - Light: ', violations.light, 'records exceeded', settings.thresholds.light, 'Lux');
+    console.log('[Vi phạm] Tóm tắt từ Backend:');
+    console.log('  - Nhiệt độ: ', violations.temp, 'bản ghi vượt quá', settings.thresholds.temp, '°C');
+    console.log('  - Độ ẩm: ', violations.hum, 'bản ghi vượt quá', settings.thresholds.hum, '%');
+    console.log('  - Ánh sáng: ', violations.light, 'bản ghi vượt quá', settings.thresholds.light, 'Lux');
 
     return violations;
   } catch (error) {
-    console.error('Error fetching sensor violations:', error);
+    console.error('Lỗi khi lấy số lần vi phạm cảm biến:', error);
     return { temp: 0, hum: 0, light: 0 };
   }
 }
 
-// Update summary cards
+// Cập nhật thẻ tóm tắt
 function updateSummaryCards(data) {
-  console.log('Updating UI with action counts:', data);
+  console.log('Đang cập nhật UI với số lần hoạt động:', data);
   
   const cards = [
     { id: 'total-light', value: data.light },
@@ -176,24 +176,24 @@ function updateSummaryCards(data) {
     }
   });
   
-  // Sort devices by count (descending) for table display
+  // Sắp xếp thiết bị theo số lần (giảm dần) để hiển thị bảng
   const devices = [
     { name: 'LIGHT', icon: '💡', count: data.light, key: 'light' },
     { name: 'FAN', icon: '🌀', count: data.fan, key: 'fan' },
     { name: 'AIR', icon: '❄️', count: data.air, key: 'air' }
   ];
   
-  // Sort descending by count
+  // Sắp xếp giảm dần theo số lần
   devices.sort((a, b) => b.count - a.count);
-  console.log('Sorted devices:', devices);
+  console.log('Thiết bị đã sắp xếp:', devices);
   
-  // Update table - reorder rows by count
+  // Cập nhật bảng - sắp xếp lại các hàng theo số lần
   const tbody = select('activity-tbody');
   if (tbody) {
-    // Clear existing rows
+    // Xóa các hàng hiện có
     tbody.innerHTML = '';
     
-    // Add sorted rows
+    // Thêm các hàng đã sắp xếp
     devices.forEach((device, index) => {
       const row = document.createElement('tr');
       row.setAttribute('data-device', device.key);
@@ -211,7 +211,7 @@ function updateSummaryCards(data) {
       
       tbody.appendChild(row);
       
-      // Animate the count
+      // Tạo hiệu ứng cho số đếm
       const countElement = row.querySelector('.device-count');
       if (countElement) {
         animateNumber(countElement, 0, device.count, 800);
@@ -219,7 +219,7 @@ function updateSummaryCards(data) {
     });
   }
   
-  // Update last update time
+  // Cập nhật thời gian cập nhật cuối cùng
   const lastUpdate = select('last-update');
   if (lastUpdate) {
     const now = new Date();
@@ -228,31 +228,31 @@ function updateSummaryCards(data) {
   }
 }
 
-// Update sensor violations table
+// Cập nhật bảng vi phạm cảm biến
 function updateViolationsTable(violations) {
-  console.log('[updateViolationsTable] Received violations:', violations);
+  console.log('[updateViolationsTable] Đã nhận số lần vi phạm:', violations);
   
-  // Sort sensors by violation count (descending)
+  // Sắp xếp cảm biến theo số lần vi phạm (giảm dần)
   const sensors = [
     { name: 'Nhiệt độ', icon: '🌡️', count: violations.temp, key: 'temp', unit: '°C' },
     { name: 'Độ ẩm', icon: '💧', count: violations.hum, key: 'hum', unit: '%' },
     { name: 'Ánh sáng', icon: '☀️', count: violations.light, key: 'light', unit: ' Lux' }
   ];
   
-  // Sort descending by count
+  // Sắp xếp giảm dần theo số lần
   sensors.sort((a, b) => b.count - a.count);
-  console.log('[updateViolationsTable] Sorted sensors:', sensors);
+  console.log('[updateViolationsTable] Cảm biến đã sắp xếp:', sensors);
   
-  // Update table - reorder rows by count
+  // Cập nhật bảng - sắp xếp lại các hàng theo số lần
   const tbody = select('violations-tbody');
-  console.log('[updateViolationsTable] Found tbody element:', tbody);
+  console.log('[updateViolationsTable] Tìm thấy phần tử tbody:', tbody);
   
   if (tbody) {
-    // Clear existing rows
+    // Xóa các hàng hiện có
     tbody.innerHTML = '';
-    console.log('[updateViolationsTable] Cleared tbody, adding new rows...');
+    console.log('[updateViolationsTable] Đã xóa tbody, đang thêm hàng mới...');
     
-    // Add sorted rows
+    // Thêm các hàng đã sắp xếp
     sensors.forEach((sensor, index) => {
       const row = document.createElement('tr');
       row.setAttribute('data-sensor', sensor.key);
@@ -272,52 +272,52 @@ function updateViolationsTable(violations) {
       `;
       
       tbody.appendChild(row);
-      console.log(`[updateViolationsTable] Added row for ${sensor.name}: ${sensor.count} violations`);
+      console.log(`[updateViolationsTable] Đã thêm hàng cho ${sensor.name}: ${sensor.count} lần vi phạm`);
       
-      // Animate the count
+      // Tạo hiệu ứng cho số đếm
       const countElement = row.querySelector('.violation-count');
       if (countElement) {
         animateNumber(countElement, 0, sensor.count, 800);
       }
     });
     
-    console.log('[updateViolationsTable] All rows added successfully');
+    console.log('[updateViolationsTable] Đã thêm tất cả các hàng thành công');
   } else {
-    console.error('[updateViolationsTable] ERROR: violations-tbody element not found!');
+    console.error('[updateViolationsTable] LỖI: không tìm thấy phần tử violations-tbody!');
   }
 }
 
-// Update activity table with violation details - REMOVED
-// Table is now static with counts only
+// Cập nhật bảng hoạt động với chi tiết vi phạm - ĐÃ XÓA
+// Bảng bây giờ chỉ hiển thị số đếm tĩnh
 
-// Initialize chart - REMOVED
-// No longer needed
+// Khởi tạo biểu đồ - ĐÃ XÓA
+// Không còn cần thiết
 
-// Update chart - REMOVED
-// No longer needed
+// Cập nhật biểu đồ - ĐÃ XÓA
+// Không còn cần thiết
 
-// Load and display statistics
+// Tải và hiển thị thống kê
 async function loadStatistics() {
-  console.log('[loadStatistics] Starting to load statistics...');
+  console.log('[loadStatistics] Bắt đầu tải thống kê...');
   
   const { violations } = await fetchStatistics('today');
   statisticsData = violations;
   
-  console.log('[loadStatistics] Device action counts:', violations);
+  console.log('[loadStatistics] Số lần hoạt động của thiết bị:', violations);
   updateSummaryCards(violations);
   
-  // Fetch and update sensor violations
-  console.log('[loadStatistics] Fetching sensor violations...');
+  // Lấy và cập nhật số lần vi phạm cảm biến
+  console.log('[loadStatistics] Đang lấy số lần vi phạm cảm biến...');
   const sensorViolations = await fetchSensorViolations();
-  console.log('[loadStatistics] Sensor violations result:', sensorViolations);
+  console.log('[loadStatistics] Kết quả số lần vi phạm cảm biến:', sensorViolations);
   updateViolationsTable(sensorViolations);
   
-  console.log('[loadStatistics] All statistics loaded successfully');
+  console.log('[loadStatistics] Đã tải tất cả thống kê thành công');
 }
 
-// Page animations
+// Hiệu ứng trang
 function initPageAnimations() {
-  // Animate summary cards
+  // Hiệu ứng cho thẻ tóm tắt
   gsap.from('.summary-card', {
     opacity: 0,
     y: 30,
@@ -326,7 +326,7 @@ function initPageAnimations() {
     ease: "power2.out"
   });
 
-  // Animate activity card
+  // Hiệu ứng cho thẻ hoạt động
   gsap.from('.activity-card', {
     opacity: 0,
     y: 30,
@@ -336,7 +336,7 @@ function initPageAnimations() {
   });
 }
 
-// Add hover effects
+// Thêm hiệu ứng di chuột
 function addHoverEffects() {
   document.querySelectorAll('.summary-card').forEach(card => {
     card.addEventListener('mouseenter', () => {
@@ -356,11 +356,11 @@ function addHoverEffects() {
   });
 }
 
-// Initialize
+// Khởi tạo
 window.addEventListener('DOMContentLoaded', async () => {
   loadSettings();
   
-  // Display initial thresholds in violations table
+  // Hiển thị ngưỡng ban đầu trong bảng vi phạm
   if (select('threshold-temp-display')) {
     select('threshold-temp-display').textContent = settings.thresholds.temp;
   }
@@ -371,14 +371,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     select('threshold-light-display').textContent = settings.thresholds.light;
   }
 
-  // Load initial statistics
+  // Tải thống kê ban đầu
   await loadStatistics();
   
-  // Animations
+  // Hiệu ứng
   initPageAnimations();
   addHoverEffects();
 
-  // Settings button
+  // Nút cài đặt
   const btnSettings = select('btn-settings');
   if (btnSettings) {
     btnSettings.addEventListener('click', () => {
@@ -393,7 +393,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Settings close
+  // Đóng cài đặt
   const btnClose = select('settings-close');
   const btnCancel = select('settings-cancel');
   const closeModal = () => {
@@ -406,7 +406,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (btnClose) btnClose.addEventListener('click', closeModal);
   if (btnCancel) btnCancel.addEventListener('click', closeModal);
 
-  // Settings save
+  // Lưu cài đặt
   const btnSave = select('settings-save');
   if (btnSave) {
     btnSave.addEventListener('click', async () => {
@@ -416,12 +416,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       settings.thresholds.hum = Number(select('th-hum').value);
       settings.thresholds.light = Number(select('th-light').value);
       
-      console.log('[Settings] Old thresholds:', oldThresholds);
-      console.log('[Settings] New thresholds:', settings.thresholds);
+      console.log('[Cài đặt] Ngưỡng cũ:', oldThresholds);
+      console.log('[Cài đặt] Ngưỡng mới:', settings.thresholds);
       
       saveSettings();
       
-      // Show notification
+      // Hiển thị thông báo
       const notification = document.createElement('div');
       notification.style.cssText = `
         position: fixed;
@@ -439,7 +439,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       notification.textContent = '✓ Đã lưu cài đặt ngưỡng';
       document.body.appendChild(notification);
       
-      // Add animation
+      // Thêm hiệu ứng
       const style = document.createElement('style');
       style.textContent = `
         @keyframes slideIn {
@@ -449,21 +449,21 @@ window.addEventListener('DOMContentLoaded', async () => {
       `;
       document.head.appendChild(style);
       
-      // Remove notification after 2 seconds
+      // Xóa thông báo sau 2 giây
       setTimeout(() => {
         notification.style.animation = 'slideIn 0.3s ease-in reverse';
         setTimeout(() => notification.remove(), 300);
       }, 2000);
       
-      // Reload statistics with new thresholds
-      console.log('[Settings] Reloading statistics with new thresholds...');
+      // Tải lại thống kê với ngưỡng mới
+      console.log('[Cài đặt] Đang tải lại thống kê với ngưỡng mới...');
       await loadStatistics();
       
       closeModal();
     });
   }
 
-  // Close modal on backdrop click
+  // Đóng modal khi nhấp vào nền
   const modal = select('settings-modal');
   if (modal) {
     modal.addEventListener('click', (e) => {
@@ -473,9 +473,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Time range selector - REMOVED
+  // Bộ chọn phạm vi thời gian - ĐÃ XÓA
 
-  // Auto refresh every 30 seconds
+  // Tự động làm mới sau mỗi 30 giây
   setInterval(async () => {
     await loadStatistics();
   }, 30000);

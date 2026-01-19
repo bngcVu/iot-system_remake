@@ -29,9 +29,10 @@ public class StatisticsService {
     }
 
     /**
-     * Count device ON actions for a specific date
-     * Returns count grouped by device name (LIGHT, FAN, AIR)
-     */
+    * Đếm số lần bật thiết bị trong một ngày cụ thể
+    * Trả về số lượng được nhóm theo tên thiết bị (LIGHT, FAN, AIR)
+    */
+
     public DeviceActionsCountDTO countDeviceActions(String dateStr) {
         LocalDate date = parseDate(dateStr);
         LocalDateTime startOfDay = date.atStartOfDay();
@@ -72,8 +73,7 @@ public class StatisticsService {
     }
 
     /**
-     * Count sensor violations for a specific date and thresholds
-     * Returns count of records exceeding each threshold
+     * Đến số lần vi phạm của cảm biến cho một ngày và ngưỡng cụ thể
      */
     public SensorViolationsCountDTO countSensorViolations(String dateStr, 
                                                          Double tempThreshold,
@@ -83,7 +83,7 @@ public class StatisticsService {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
 
-        // Count temperature violations
+        // Đếm số lần vượt ngưỡng nhiệt độ
         String tempSql = """
             SELECT COUNT(*) FROM sensor_data
             WHERE recorded_at >= :start 
@@ -96,7 +96,7 @@ public class StatisticsService {
         tempQuery.setParameter("threshold", tempThreshold);
         int tempCount = ((Number) tempQuery.getSingleResult()).intValue();
 
-        // Count humidity violations
+        // Đếm số lần vượt ngưỡng độ ẩm
         String humSql = """
             SELECT COUNT(*) FROM sensor_data
             WHERE recorded_at >= :start 
@@ -109,7 +109,7 @@ public class StatisticsService {
         humQuery.setParameter("threshold", humThreshold);
         int humCount = ((Number) humQuery.getSingleResult()).intValue();
 
-        // Count light violations
+        // Đếm số lần vượt ngưỡng ánh sáng
         String lightSql = """
             SELECT COUNT(*) FROM sensor_data
             WHERE recorded_at >= :start 
@@ -126,7 +126,7 @@ public class StatisticsService {
     }
 
     /**
-     * Parse date string in format dd-MM-yyyy
+     * Phân tích chuỗi ngày theo định dạng dd-MM-yyyy
      */
     private LocalDate parseDate(String dateStr) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
